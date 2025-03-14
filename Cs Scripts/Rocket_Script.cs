@@ -16,7 +16,7 @@ public class RocketAgent : Agent
     
     [Header("Movement Settings")]
     [SerializeField] private float pitchSpeed = 100f;
-    [SerializeField] private float thrustForce = 100f;
+    [SerializeField] private float thrustForce = 10f;
 
     [Header("Penalties / Rewards")]
     [SerializeField] private float movePenalty = 0.001f;  // pitch kullanım cezası
@@ -141,7 +141,7 @@ public class RocketAgent : Agent
 
         // Yan yatma
         float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
-        Debug.Log($"angleFromUp: {angleFromUp}");
+        //Debug.Log($"angleFromUp: {angleFromUp}");
         
 
 
