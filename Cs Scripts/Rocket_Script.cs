@@ -21,7 +21,6 @@ public class RocketAgent : Agent
     [Header("Penalties / Rewards")]
     [SerializeField] private float movePenalty = 0.001f;  // pitch kullanım cezası
     [SerializeField] private float stepPenalty = 0.0001f;  // Zaman cezası (her adım)
-    [SerializeField] private float tiltThreshold = 30f;    // Bu açıdan fazlası "yan yattı" sayılacak
     [SerializeField] private float tiltPenalty = 0.001f;   // Yan yatma cezası (her adım)
     [SerializeField] private float AlaboraPenalty = 1f;    // Ters dönünce (tam alabora) verilecek ceza
 
@@ -31,10 +30,16 @@ public class RocketAgent : Agent
     [SerializeField] private float stableReward = 0.001f; 
 
     [Header("Approach Reward")]
-    [SerializeField] private float approachRewardFactor = 0.01f;
+    [SerializeField] private float approachRewardFactor = 0.01f;  //ekponansiyel ödül katsayısı
+    [SerializeField] public float tiltThreshold = 10f;            // Başlangıç ceza eşiği
+    [SerializeField] private float tiltPenalty = 0.01f;           // Kademeli ceza katsayısı
+    [SerializeField] private float recoveryReward = 2f;        // Düzeltme ödül katsayısı
+    [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
 
     // Önceki mesafeyi tutarak yaklaşma/uzaklaşma hesabı
-    private float previousDistanceToAstro;
+    //private float previousDistanceToAstro = 0f;
+    private float tiltTimeAccumulator = 0f; 
+    private float nextPenaltyThreshold = 1f;
 
     // ReSharper disable Unity.PerformanceAnalysis
     public override void OnEpisodeBegin()
@@ -136,25 +141,62 @@ public class RocketAgent : Agent
 
         // Yan yatma
         float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
+        Debug.Log($"angleFromUp: {angleFromUp}");
         
-        // 1) Eğer angleFromUp belirli bir eşiği (tiltThreshold) aştıysa ufak ceza
+
+
         if (angleFromUp > tiltThreshold)
-        {
-            AddReward(-tiltPenalty);
+        {       
+            // Agent tilt durumunda: zaman toplayalım
+            tiltTimeAccumulator += Time.deltaTime;
+    
+            // Eğer bir ceza periyodu (penaltyInterval) geçtiyse:
+            if (tiltTimeAccumulator >= nextPenaltyThreshold)
+            {
+                // Aşım miktarını hesaplayalım:
+                float currentTiltError = angleFromUp - tiltThreshold;
+                // Temel ceza: Aşım miktarına göre ceza
+                float basePenalty = tiltPenalty * currentTiltError;
+                AddReward(-basePenalty);
+        
+                // Eğer açı extreme değerin üzerinde ise (bağımsız olarak ek ceza):
+                if (angleFromUp >= extremeTiltAngle)
+                {
+                    AddReward(-extremeTiltExtraPenalty);
+                }
+        
+                // Sonraki ceza periyodunu ayarla:
+                nextPenaltyThreshold += penaltyInterval;
+            }
         }
+        else
+        {
+        // Agent açı eşik altına düştüyse (yani kendini düzelttiyse)
+            if (tiltTimeAccumulator > penaltyInterval)
+            {       
+                // Eğer tilt durumu en az penaltyInterval sürdüyse, fazladan kalan süre için ödül ver
+                float recoveryTime = tiltTimeAccumulator - penaltyInterval;
+                AddReward(recoveryReward * recoveryTime);
+            }
+            // Sayaçları sıfırlayalım:
+            tiltTimeAccumulator = 0f;
+            nextPenaltyThreshold = penaltyInterval;
+        }
+
 
         // 2) Tamamen ters dönmüş (örneğin 150 derece üstü) sayıyoruz
         //    Bu durumda büyük ceza ve bölümü bitirmek isteyebilirsiniz
-        if (angleFromUp > 80f)// bi ara 90 bi ara da 150 idi
+        /*if (angleFromUp > 80f)// bi ara 90 bi ara da 150 idi
         {
             //model cok hizli kaybettigi icin ogrenemiyor 
             AddReward(-AlaboraPenalty);
             //EndEpisode();
             //return; // Bitti, devam etmeye gerek yok
         }
-
+        */
         // Zaman cezası
         //AddReward(-stepPenalty);
+
 
         // Astro'ya yaklaşma ödülü (distance shaping)
         if (GameObject.FindWithTag("Astro") != null)
