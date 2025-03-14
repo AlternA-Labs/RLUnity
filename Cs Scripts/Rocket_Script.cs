@@ -173,7 +173,11 @@ public class RocketAgent : Agent
 
             if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
             {
-                AddReward(5*stableReward);
+                //AddReward(5*stableReward); // eski lineer ödül mekanizması.
+                float scalingFactor = 1.0f;  // Bu değeri deneyerek ayarlayabilirsiniz.
+                float expReward = (Mathf.Exp(distanceDelta * scalingFactor) - 1) * approachRewardFactor;
+                AddReward(expReward);
+                // exponansiyel yaklasma odulu sonu
             }
 
         }
