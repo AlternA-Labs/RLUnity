@@ -32,12 +32,12 @@ public class RocketAgent : Agent
     [Header("Approach Reward")]
     [SerializeField] private float approachRewardFactor = 0.01f;  //ekponansiyel ödül katsayısı
     [SerializeField] public float tiltThreshold = 10f;            // Başlangıç ceza eşiği
-    [SerializeField] private float tiltPenalty = 0.01f;           // Kademeli ceza katsayısı
     [SerializeField] private float recoveryReward = 2f;        // Düzeltme ödül katsayısı
     [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
-
+    [SerializeField] private float penaltyInterval = 1f;
+    
     // Önceki mesafeyi tutarak yaklaşma/uzaklaşma hesabı
-    //private float previousDistanceToAstro = 0f;
+    private float previousDistanceToAstro = 0f;
     private float tiltTimeAccumulator = 0f; 
     private float nextPenaltyThreshold = 1f;
 
@@ -162,7 +162,7 @@ public class RocketAgent : Agent
                 // Eğer açı extreme değerin üzerinde ise (bağımsız olarak ek ceza):
                 if (angleFromUp >= extremeTiltAngle)
                 {
-                    AddReward(-extremeTiltExtraPenalty);
+                    AddReward(-AlaboraPenalty);
                 }
         
                 // Sonraki ceza periyodunu ayarla:
