@@ -14,7 +14,7 @@ from mlagents_envs.base_env import ActionTuple
 MAX_STEPS = 200_000             # Toplam adım sayısı (tüm ajanlar için toplu)
 BATCH_SIZE = 128                 # Mini-batch boyutu
 GAMMA = 0.99                    # İndirim faktörü
-LEARNING_RATE = 1e-3            # Öğrenme hızı
+LEARNING_RATE = 5e-3            # Öğrenme hızı
 REPLAY_BUFFER_CAPACITY = 100_000
 TAU = 0.005                     # Soft update katsayısı
 
