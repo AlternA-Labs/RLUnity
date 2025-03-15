@@ -84,7 +84,7 @@ print('waiting unity')
 # Editor'de Play mode'da: file_name=None, base_port=5004 (Project Settings/ML-Agents -> Editor Port)
 env = UnityEnvironment(file_name=None, base_port=5004)
 env.reset()
-print('ekin efe')
+print('ekin')
 # Mevcut Behavior adlarını al
 behavior_names = list(env.behavior_specs.keys())
 behavior_name = behavior_names[0]
