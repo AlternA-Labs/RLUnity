@@ -22,7 +22,7 @@ namespace RLUnity.Cs_Scripts
         [Header("Movement Settings")]
         [SerializeField] private float pitchSpeed = 100f;
         
-        [SerializeField] private float thrustForce;
+        [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
         [SerializeField] private float movePenalty = 0.001f;  // pitch kullanım cezası
@@ -54,8 +54,8 @@ namespace RLUnity.Cs_Scripts
             thrustForce = 1000f * Time.deltaTime;
             transform.localPosition = new Vector3(0, 1f, 0);
             astroDestroyed = false;
-            astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = true;
-            astroCollider.gameObject.GetComponent<BoxCollider>().enabled = true;
+            astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = true;//tekrar gorunur yap
+            astroCollider.gameObject.GetComponent<BoxCollider>().enabled = true;//collideri ac (yuksek ihitmalle silincek)
 
         
             /*if (GameObject.FindWithTag("Astro") == null)
@@ -120,7 +120,7 @@ namespace RLUnity.Cs_Scripts
             sensor.AddObservation(rb.linearVelocity);
 
             // Astro konumunu da ekleyelim
-            if (GameObject.FindWithTag("Astro") != null)
+            if (!astroDestroyed)
             {
                 sensor.AddObservation(astro.localPosition);
             }
@@ -208,7 +208,7 @@ namespace RLUnity.Cs_Scripts
 
 
             // Astro'ya yaklaşma ödülü (distance shaping)
-            if (GameObject.FindWithTag("Astro") != null)
+            if (!astroDestroyed)
             {
                 float currentDistance = Vector3.Distance(transform.localPosition, astro.localPosition);
                 float distanceDelta = _previousDistanceToAstro - currentDistance;  // + ise yaklaştık, - ise uzaklaştık
@@ -234,7 +234,7 @@ namespace RLUnity.Cs_Scripts
             }
             
             
-            if (Vector3.Distance(transform.position, astro.position) < 1f && !astroDestroyed)
+            if (Vector3.Distance(transform.position, astro.position) < 1f && !astroDestroyed)//manuel carpisma
             {
                     OnTriggerEnter(astroCollider.GetComponent<Collider>());
             }
@@ -289,7 +289,7 @@ namespace RLUnity.Cs_Scripts
        
       
         // landzone'a belirlenen şartlarla inerse +0.5 ve bölüm sonu
-         void OnCollisionEnter(Collision col)
+         void OnCollisionEnter(Collision col)//triggerda bozuk calistigi icin OnCollisiona gecis yapildi
     {
         if(col.gameObject.CompareTag("land")){
             Debug.Log("touchdown");
@@ -298,7 +298,7 @@ namespace RLUnity.Cs_Scripts
             //Debug.Log($"astroDestroyed: {astroDestroyed}");
             //Debug.Log("ekinto");
             
-            if (astroDestroyed && (rotx >= -2.5f && rotx <= 2.5f || rotx >= 357.5f)
+            if (astroDestroyed && (rotx >= -2.5f && rotx <= 2.5f || rotx >= 357.5f)//aci kontrolleri guncellendi
                                && (rotz >= -2.5f && rotz <= 2.5f || rotz >= 357.5f))
             {
                 AddReward(1000f);
