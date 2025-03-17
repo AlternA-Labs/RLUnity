@@ -324,10 +324,6 @@ namespace RLUnity.Cs_Scripts
 
     }
 
-    private int frameCount = 0;
-    private float elapsedTime = 0f;
-    private float fps = 0f;
-    public float
     void Update()
     {
         if (!astroDestroyed)
@@ -340,7 +336,7 @@ namespace RLUnity.Cs_Scripts
             float previousDistanceForLog = _previousDistanceToAstro;
 
             // Ödül hesaplaması
-            AddReward(distanceDelta * 5 * approachRewardFactor);
+            //AddReward(distanceDelta * 5 * approachRewardFactor);
 
             // Roket eylemlerini uyguladıktan sonra:
             float speed = rb.linearVelocity.magnitude;
