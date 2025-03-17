@@ -4,7 +4,6 @@ namespace RLUnity.Cs_Scripts
 {
     public class AstroScript : MonoBehaviour
     {
-        // Update is called once per frame
         void Update()
         {
             transform.Rotate(0f, 100f * Time.deltaTime, 0f);
