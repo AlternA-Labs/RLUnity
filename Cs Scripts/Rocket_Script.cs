@@ -26,9 +26,9 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
-        [SerializeField] private float movePenalty = 1f;  // pitch kullanım cezası
+        [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
         [SerializeField] private float stepPenalty = 0.0001f;  // Zaman cezası (her adım)
-        [SerializeField] private float tiltPenalty = 0.1f;   // Yan yatma cezası (her adım)
+        [SerializeField] private float tiltPenalty = 0.01f;   // Yan yatma cezası (her adım)
         [FormerlySerializedAs("AlaboraPenalty")] 
         [SerializeField] private float alaboraPenalty = 1f;    // Ters dönünce (tam alabora) verilecek ceza
 
@@ -38,9 +38,9 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float stableReward = 0.1f; 
 
         [Header("Approach Reward")]
-        [SerializeField] private float approachRewardFactor = 0.01f;  //ekponansiyel ödül katsayısı
+        [SerializeField] private float approachRewardFactor = 0.1f;  //ekponansiyel ödül katsayısı
         [SerializeField] public float tiltThreshold = 10f;            // Başlangıç ceza eşiği
-        [SerializeField] private float recoveryReward = 2f;        // Düzeltme ödül katsayısı
+        [SerializeField] private float recoveryReward = 0.1f;        // Düzeltme ödül katsayısı
         [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
         [SerializeField] private float penaltyInterval = 1f;  // belirli bir açı için izin verilen süre
     
@@ -371,8 +371,9 @@ namespace RLUnity.Cs_Scripts
             float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
             float expReward = baseReward * approachRewardFactor * sign;
 
-            AddReward(expReward);
-            Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
+            float Reward = distanceDelta * 100;
+            //AddReward(expReward);
+            Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
             
 
             // Eski mesafeyi güncelle
