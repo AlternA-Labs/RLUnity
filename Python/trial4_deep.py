@@ -49,7 +49,7 @@ class PrioritizedReplayBuffer:
             self.pos = (self.pos + 1) % self.capacity
 
     def sample(self, batch_size, beta=0.4):
-        priorities = np.array(self.priorities)
+        priorities = np.array([float(p) for p in self.priorities], dtype=np.float64)
         probs = priorities ** self.alpha
         probs /= probs.sum()
 

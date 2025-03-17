@@ -242,18 +242,18 @@ namespace RLUnity.Cs_Scripts
             //     }
             //
             // }
-            
+            float minHeightThreshold = 1.2f;
+            if (transform.localPosition.y < minHeightThreshold)
+            {
+                AddReward(-0.5f); // Hafif ceza, her adımda
+                Debug.Log($"YErde durma cezası");
+            }
             
             if (Vector3.Distance(transform.position, astro.position) < 1f && !astroDestroyed)//manuel carpisma
             {
                     OnTriggerEnter(astroCollider.GetComponent<Collider>());
             }
-            float minHeightThreshold = 1.2f; // 1.2 birimin altında ise yerde sayıyoruz
-            //roketlere uçmama cezası.
-            if (transform.localPosition.y < minHeightThreshold)
-            {
-                AddReward(-0.5f); // Hafif ceza, her adımda
-            }
+            
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -279,7 +279,7 @@ namespace RLUnity.Cs_Scripts
 
         private void OnTriggerEnter(Collider other)
         {
-            // AstroScript'e değerse +0.5 ödül
+            // AstroScript'e değerse 
             if (other.TryGetComponent<AstroScript>(out AstroScript half))
             {
                 AddReward(1000f);
@@ -326,6 +326,16 @@ namespace RLUnity.Cs_Scripts
 
     void Update()
     {
+
+        //roketlere uçmama cezası.
+
+        /*
+        if(transform.gameObject.CompareTag("land"))
+        {
+            AddReward(-1f); // İstediğin ceza miktarını ayarla.
+            Debug.Log("Plane teması cezası verildi.");
+        }
+        */
         if (!astroDestroyed)
         {
             // Astro'ya yaklaşma ödülü (distance shaping)
@@ -351,7 +361,7 @@ namespace RLUnity.Cs_Scripts
             float expReward = baseReward * approachRewardFactor * sign;
 
             AddReward(expReward);
-            Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
+            //Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
             
 
             // Eski mesafeyi güncelle
