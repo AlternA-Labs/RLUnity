@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -21,7 +22,7 @@ TAU = 0.005                     # Soft update katsayısı
 # Exploration için Gaussian gürültü
 NOISE_STD = 0.15
 
-device = torch.device("mps" if torch.mps.is_available() else "cpu")
+device = torch.device("mps" )#if torch.mps.is_available() else "cpu")
 
 ##########################################
 # Replay Buffer
@@ -270,6 +271,7 @@ utc_plus_3 = pytz.timezone('Europe/Istanbul')
 date=datetime.datetime.now(utc_plus_3)
 formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
 print(formatted_datetime)
+os.makedirs("models", exist_ok=True)
 torch.save(actor.state_dict(), f"models/actor{formatted_datetime}.pth")
 torch.save(critic.state_dict(), f"models/critic{formatted_datetime}.pth")
 print(f"Son adımda Actor ve Critic modeli kaydedildi: actor{formatted_datetime}.pth")
