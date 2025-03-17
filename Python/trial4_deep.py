@@ -285,6 +285,7 @@ while global_step < MAX_STEPS:
     if global_step % 1000 == 0 and episode_rewards:
         avg_reward = np.mean(episode_rewards[-10:])  # son 10 episodun ortalaması
         print(f"Global Step: {global_step}, Recent Avg Reward: {avg_reward:.2f}")
+        print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}")
         if avg_reward > best_reward:
             best_reward = avg_reward
             best_actor.load_state_dict(actor.state_dict())

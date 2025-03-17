@@ -16,7 +16,8 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private GameObject newAstro;
         [SerializeField] private GameObject astroRenderer;
         [SerializeField] private GameObject astroCollider;
-        [FormerlySerializedAs("AstroDestroyed")] [SerializeField] private bool astroDestroyed;
+        [FormerlySerializedAs("AstroDestroyed")] 
+        [SerializeField] private bool astroDestroyed;
     
     
         [Header("Movement Settings")]
@@ -28,7 +29,8 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float movePenalty = 1f;  // pitch kullanım cezası
         [SerializeField] private float stepPenalty = 0.0001f;  // Zaman cezası (her adım)
         [SerializeField] private float tiltPenalty = 0.1f;   // Yan yatma cezası (her adım)
-        [FormerlySerializedAs("AlaboraPenalty")] [SerializeField] private float alaboraPenalty = 1f;    // Ters dönünce (tam alabora) verilecek ceza
+        [FormerlySerializedAs("AlaboraPenalty")] 
+        [SerializeField] private float alaboraPenalty = 1f;    // Ters dönünce (tam alabora) verilecek ceza
 
         [Header("Stability Reward Settings")]
         [SerializeField] private float stableVelocityThreshold = 0.1f;
@@ -261,7 +263,7 @@ namespace RLUnity.Cs_Scripts
                 if (distance < 1.5f)
                 {
                     Debug.Log("eşşeklik cezası");
-                    AddReward(-0.1f);
+                    AddReward(-0.5f);
                 }
             }
             else
@@ -365,12 +367,12 @@ namespace RLUnity.Cs_Scripts
             float sign = isApproaching ? 1f : -1f;
             float absDelta = Mathf.Abs(distanceDelta);
 
-            float scalingFactor = 0.5f;
+            float scalingFactor = 5f;
             float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
             float expReward = baseReward * approachRewardFactor * sign;
 
             AddReward(expReward);
-            //Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
+            Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
             
 
             // Eski mesafeyi güncelle
