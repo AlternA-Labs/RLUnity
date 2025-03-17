@@ -40,7 +40,7 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] public float tiltThreshold = 10f;            // Başlangıç ceza eşiği
         [SerializeField] private float recoveryReward = 2f;        // Düzeltme ödül katsayısı
         [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
-        [SerializeField] private float penaltyInterval = 1f;
+        [SerializeField] private float penaltyInterval = 1f;  // belirli bir açı için izin verilen süre
     
         // Önceki mesafeyi tutarak yaklaşma/uzaklaşma hesabı
         private float _previousDistanceToAstro = 0f;
@@ -156,7 +156,7 @@ namespace RLUnity.Cs_Scripts
 
             if (angleFromUp > tiltThreshold)
             {       
-                // Agent tilt durumunda: zaman toplayalım
+                // Agent tilt durumunda: zaman sayalım
                 _tiltTimeAccumulator += Time.deltaTime;
     
                 // Eğer bir ceza periyodu (penaltyInterval) geçtiyse:
@@ -225,9 +225,16 @@ namespace RLUnity.Cs_Scripts
                 if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
                 {
                     //AddReward(5*stableReward); // eski lineer ödül mekanizması.
-                    float scalingFactor = 1.0f;  // Bu değeri deneyerek ayarlayabilirsiniz.
+                    float scalingFactor = 0.5f;  // Bu değeri deneyerek ayarlayabilirsiniz.
                     float expReward = (Mathf.Exp(distanceDelta * scalingFactor) - 1) * approachRewardFactor;
                     AddReward(expReward);
+                    bool isApproaching = false;
+                    if (distanceDelta > 0)
+                    {
+                        isApproaching = true;
+                    }
+                    Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward}");
+
                     // exponansiyel yaklasma odulu sonu
                 }
 
