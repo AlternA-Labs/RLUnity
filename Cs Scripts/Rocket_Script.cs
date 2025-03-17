@@ -50,6 +50,8 @@ namespace RLUnity.Cs_Scripts
         // ReSharper disable Unity.PerformanceAnalysis
         public override void OnEpisodeBegin()
         {
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 70;
             // Bölüm (episode) başlangıcı
             thrustForce = 1000f * Time.deltaTime;
             transform.localPosition = new Vector3(0, 1f, 0);
@@ -207,39 +209,39 @@ namespace RLUnity.Cs_Scripts
             //AddReward(-stepPenalty);
 
 
-            // Astro'ya yaklaşma ödülü (distance shaping)
-            if (!astroDestroyed)
-            {
-                float currentDistance = Vector3.Distance(transform.localPosition, astro.localPosition);
-                float distanceDelta = _previousDistanceToAstro - currentDistance;  // + ise yaklaştık, - ise uzaklaştık
-                // Debug.Log($"distanceDelta: {distanceDelta}");
-                AddReward(distanceDelta * 5 * approachRewardFactor);
-
-                _previousDistanceToAstro = currentDistance;
-            
-             
-                // Roket eylemlerini uyguladıktan sonra:
-                float speed = rb.linearVelocity.magnitude;
-                angleFromUp = Vector3.Angle(transform.up, Vector3.up);
-
-                if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
-                {
-                    //AddReward(5*stableReward); // eski lineer ödül mekanizması.
-                    bool isApproaching = distanceDelta > 0;
-                    float sign = isApproaching ? 1f : -1f;
-                    float absDelta = Mathf.Abs(distanceDelta);
-
-                    float scalingFactor = 0.5f;
-                    float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
-                    float expReward = baseReward * approachRewardFactor * sign;
-
-                    AddReward(expReward);
-                    Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {_previousDistanceToAstro}, Current: {currentDistance}");
-
-                    // exponansiyel yaklasma odulu sonu
-                }
-
-            }
+            // // Astro'ya yaklaşma ödülü (distance shaping)
+            // if (!astroDestroyed)
+            // {
+            //     float currentDistance = Vector3.Distance(transform.position, astro.position);
+            //     float distanceDelta = _previousDistanceToAstro - currentDistance;  // + ise yaklaştık, - ise uzaklaştık
+            //     // Debug.Log($"distanceDelta: {distanceDelta}");
+            //     AddReward(distanceDelta * 5 * approachRewardFactor);
+            //
+            //     _previousDistanceToAstro = currentDistance;
+            //
+            //  
+            //     // Roket eylemlerini uyguladıktan sonra:
+            //     float speed = rb.linearVelocity.magnitude;
+            //     angleFromUp = Vector3.Angle(transform.up, Vector3.up);
+            //
+            //     if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
+            //     {
+            //         //AddReward(5*stableReward); // eski lineer ödül mekanizması.
+            //         bool isApproaching = distanceDelta > 0;
+            //         float sign = isApproaching ? 1f : -1f;
+            //         float absDelta = Mathf.Abs(distanceDelta);
+            //
+            //         float scalingFactor = 0.5f;
+            //         float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
+            //         float expReward = baseReward * approachRewardFactor * sign;
+            //
+            //         AddReward(expReward);
+            //         Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {_previousDistanceToAstro}, Current: {currentDistance}");
+            //
+            //         // exponansiyel yaklasma odulu sonu
+            //     }
+            //
+            // }
             
             
             if (Vector3.Distance(transform.position, astro.position) < 1f && !astroDestroyed)//manuel carpisma
@@ -321,5 +323,47 @@ namespace RLUnity.Cs_Scripts
         }
 
     }
+
+    private int frameCount = 0;
+    private float elapsedTime = 0f;
+    private float fps = 0f;
+
+    void Update()
+    {
+        if (!astroDestroyed)
+        {
+            // Astro'ya yaklaşma ödülü (distance shaping)
+            float currentDistance = Vector3.Distance(transform.position, astro.position);
+            float distanceDelta = _previousDistanceToAstro - currentDistance;
+
+            // Geçici değişken ile eski mesafeyi saklayalım
+            float previousDistanceForLog = _previousDistanceToAstro;
+
+            // Ödül hesaplaması
+            AddReward(distanceDelta * 5 * approachRewardFactor);
+
+            // Roket eylemlerini uyguladıktan sonra:
+            float speed = rb.linearVelocity.magnitude;
+            float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
+
+            if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
+            {
+                bool isApproaching = distanceDelta > 0;
+                float sign = isApproaching ? 1f : -1f;
+                float absDelta = Mathf.Abs(distanceDelta);
+
+                float scalingFactor = 0.5f;
+                float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
+                float expReward = baseReward * approachRewardFactor * sign;
+
+                AddReward(expReward);
+                Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
+            }
+
+            // Eski mesafeyi güncelle
+            _previousDistanceToAstro = currentDistance;
+        }
+    }
+
     }
 }
