@@ -327,7 +327,7 @@ namespace RLUnity.Cs_Scripts
     private int frameCount = 0;
     private float elapsedTime = 0f;
     private float fps = 0f;
-
+    public float
     void Update()
     {
         if (!astroDestroyed)
@@ -346,19 +346,17 @@ namespace RLUnity.Cs_Scripts
             float speed = rb.linearVelocity.magnitude;
             float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
 
-            if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
-            {
-                bool isApproaching = distanceDelta > 0;
-                float sign = isApproaching ? 1f : -1f;
-                float absDelta = Mathf.Abs(distanceDelta);
+            bool isApproaching = distanceDelta > 0;
+            float sign = isApproaching ? 1f : -1f;
+            float absDelta = Mathf.Abs(distanceDelta);
 
-                float scalingFactor = 0.5f;
-                float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
-                float expReward = baseReward * approachRewardFactor * sign;
+            float scalingFactor = 0.5f;
+            float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
+            float expReward = baseReward * approachRewardFactor * sign;
 
-                AddReward(expReward);
-                Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
-            }
+            AddReward(expReward);
+            Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
+            
 
             // Eski mesafeyi güncelle
             _previousDistanceToAstro = currentDistance;
