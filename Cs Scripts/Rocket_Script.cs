@@ -225,15 +225,16 @@ namespace RLUnity.Cs_Scripts
                 if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
                 {
                     //AddReward(5*stableReward); // eski lineer ödül mekanizması.
-                    float scalingFactor = 0.5f;  // Bu değeri deneyerek ayarlayabilirsiniz.
-                    float expReward = (Mathf.Exp(distanceDelta * scalingFactor) - 1) * approachRewardFactor;
+                    bool isApproaching = distanceDelta > 0;
+                    float sign = isApproaching ? 1f : -1f;
+                    float absDelta = Mathf.Abs(distanceDelta);
+
+                    float scalingFactor = 0.5f;
+                    float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
+                    float expReward = baseReward * approachRewardFactor * sign;
+
                     AddReward(expReward);
-                    bool isApproaching = false;
-                    if (distanceDelta > 0)
-                    {
-                        isApproaching = true;
-                    }
-                    Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward}");
+                    Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {expReward} Previous: {_previousDistanceToAstro}, Current: {currentDistance}");
 
                     // exponansiyel yaklasma odulu sonu
                 }
@@ -245,7 +246,12 @@ namespace RLUnity.Cs_Scripts
             {
                     OnTriggerEnter(astroCollider.GetComponent<Collider>());
             }
-            
+            float minHeightThreshold = 1.2f; // 1.2 birimin altında ise yerde sayıyoruz
+            //roketlere uçmama cezası.
+            if (transform.localPosition.y < minHeightThreshold)
+            {
+                AddReward(-0.5f); // Hafif ceza, her adımda
+            }
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
