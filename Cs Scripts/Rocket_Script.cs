@@ -46,10 +46,14 @@ namespace RLUnity.Cs_Scripts
         private float _previousDistanceToAstro = 0f;
         private float _tiltTimeAccumulator = 0f; 
         private float _nextPenaltyThreshold = 1f;
+        private GameObject m_LandObject;
 
         // ReSharper disable Unity.PerformanceAnalysis
+
+
         public override void OnEpisodeBegin()
         {
+            m_LandObject= GameObject.FindGameObjectWithTag("land");
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 70;
             // Bölüm (episode) başlangıcı
@@ -242,12 +246,7 @@ namespace RLUnity.Cs_Scripts
             //     }
             //
             // }
-            float minHeightThreshold = 1.2f;
-            if (transform.localPosition.y < minHeightThreshold)
-            {
-                AddReward(-0.5f); // Hafif ceza, her adımda
-                Debug.Log($"YErde durma cezası");
-            }
+
             
             if (Vector3.Distance(transform.position, astro.position) < 1f && !astroDestroyed)//manuel carpisma
             {
@@ -327,15 +326,23 @@ namespace RLUnity.Cs_Scripts
     void Update()
     {
 
-        //roketlere uçmama cezası.
 
-        /*
-        if(transform.gameObject.CompareTag("land"))
+        if (m_LandObject != null)
         {
-            AddReward(-1f); // İstediğin ceza miktarını ayarla.
-            Debug.Log("Plane teması cezası verildi.");
+            // Kendi konumunuz ile "land" objesinin konumunu al ve mesafeyi hesapla
+            float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
+            if (distance < 1.5f)
+            {
+                Debug.Log("eşşeklik cezası");
+                AddReward(-0.1f);
+            }
         }
-        */
+        else
+        {
+            Debug.LogWarning("Land etiketli obje bulunamadı!");
+        }
+
+
         if (!astroDestroyed)
         {
             // Astro'ya yaklaşma ödülü (distance shaping)

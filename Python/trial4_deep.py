@@ -192,11 +192,14 @@ while global_step < MAX_STEPS:
 
     # 3) Ortamı bir adım ilerlet
     try:
-        env.step()
+        while global_step < MAX_STEPS:
+            env.step()
+            global_step += 1
     except Exception as e:
         print(f"Error during environment step: {e}")
+        training_error_occurred = True
         break
-    global_step += 1
+
 
     # 4) Yeni step sonuçları al
     next_decision_steps, next_terminal_steps = env.get_steps(behavior_name)
@@ -297,7 +300,11 @@ print("Training completed.")
 utc_plus_3 = pytz.timezone('Europe/Istanbul')
 date = datetime.datetime.now(utc_plus_3)
 formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
-os.makedirs("models", exist_ok=True)
-torch.save(actor.state_dict(), f"models/actor_{formatted_datetime}.pth")
-torch.save(critic.state_dict(), f"models/critic_{formatted_datetime}.pth")
-print(f"Models saved: actor_{formatted_datetime}.pth, critic_{formatted_datetime}.pth")
+
+if not training_error_occurred:
+    os.makedirs("models", exist_ok=True)
+    torch.save(actor.state_dict(), f"models/actor_{formatted_datetime}.pth")
+    torch.save(critic.state_dict(), f"models/critic_{formatted_datetime}.pth")
+    print(f"Models saved: actor_{formatted_datetime}.pth, critic_{formatted_datetime}.pth")
+else:
+    print("Training error occurred. Models are not saved.")
