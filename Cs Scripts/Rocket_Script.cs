@@ -25,15 +25,15 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
-        [SerializeField] private float movePenalty = 0.001f;  // pitch kullanım cezası
+        [SerializeField] private float movePenalty = 1f;  // pitch kullanım cezası
         [SerializeField] private float stepPenalty = 0.0001f;  // Zaman cezası (her adım)
-        [SerializeField] private float tiltPenalty = 0.001f;   // Yan yatma cezası (her adım)
+        [SerializeField] private float tiltPenalty = 0.1f;   // Yan yatma cezası (her adım)
         [FormerlySerializedAs("AlaboraPenalty")] [SerializeField] private float alaboraPenalty = 1f;    // Ters dönünce (tam alabora) verilecek ceza
 
         [Header("Stability Reward Settings")]
         [SerializeField] private float stableVelocityThreshold = 0.1f;
         [SerializeField] private float stableAngleThreshold = 5f;  // Kaç derecenin altı dik sayılacak
-        [SerializeField] private float stableReward = 0.001f; 
+        [SerializeField] private float stableReward = 0.1f; 
 
         [Header("Approach Reward")]
         [SerializeField] private float approachRewardFactor = 0.01f;  //ekponansiyel ödül katsayısı
@@ -46,14 +46,14 @@ namespace RLUnity.Cs_Scripts
         private float _previousDistanceToAstro = 0f;
         private float _tiltTimeAccumulator = 0f; 
         private float _nextPenaltyThreshold = 1f;
-        //private GameObject m_LandObject;
+        private GameObject m_LandObject;
 
-        // ReSharper disable Unity.PerformanceAnalysis
+        //ReSharper disable Unity.PerformanceAnalysis
 
 
         public override void OnEpisodeBegin()
         {
-            //m_LandObject= GameObject.FindGameObjectWithTag("land");
+            m_LandObject= GameObject.FindGameObjectWithTag("land");
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 70;
             // Bölüm (episode) başlangıcı
@@ -253,6 +253,22 @@ namespace RLUnity.Cs_Scripts
                     OnTriggerEnter(astroCollider.GetComponent<Collider>());
             }
             
+            
+            if (m_LandObject != null)
+            {
+                // Kendi konumunuz ile "land" objesinin konumunu al ve mesafeyi hesapla
+                float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
+                if (distance < 1.5f)
+                {
+                    Debug.Log("eşşeklik cezası");
+                    AddReward(-0.1f);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("Land etiketli obje bulunamadı!");
+            }
+            
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -327,21 +343,7 @@ namespace RLUnity.Cs_Scripts
     {
 
 
-       /* if (m_LandObject != null)
-        {
-            // Kendi konumunuz ile "land" objesinin konumunu al ve mesafeyi hesapla
-            float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
-            if (distance < 1.5f)
-            {
-                Debug.Log("eşşeklik cezası");
-                AddReward(-0.1f);
-            }
-        }
-        else
-        {
-            Debug.LogWarning("Land etiketli obje bulunamadı!");
-        }
-*/
+
 
         if (!astroDestroyed)
         {
