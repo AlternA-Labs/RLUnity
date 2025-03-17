@@ -192,14 +192,13 @@ while global_step < MAX_STEPS:
 
     # 3) Ortamı bir adım ilerlet
     try:
-        while global_step < MAX_STEPS:
             env.step()
-            global_step += 1
+
     except Exception as e:
         print(f"Error during environment step: {e}")
         training_error_occurred = True
         break
-
+    global_step += 1
 
     # 4) Yeni step sonuçları al
     next_decision_steps, next_terminal_steps = env.get_steps(behavior_name)

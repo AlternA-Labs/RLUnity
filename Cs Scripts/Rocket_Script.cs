@@ -46,14 +46,14 @@ namespace RLUnity.Cs_Scripts
         private float _previousDistanceToAstro = 0f;
         private float _tiltTimeAccumulator = 0f; 
         private float _nextPenaltyThreshold = 1f;
-        private GameObject m_LandObject;
+        //private GameObject m_LandObject;
 
         // ReSharper disable Unity.PerformanceAnalysis
 
 
         public override void OnEpisodeBegin()
         {
-            m_LandObject= GameObject.FindGameObjectWithTag("land");
+            //m_LandObject= GameObject.FindGameObjectWithTag("land");
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 70;
             // Bölüm (episode) başlangıcı
@@ -327,7 +327,7 @@ namespace RLUnity.Cs_Scripts
     {
 
 
-        if (m_LandObject != null)
+       /* if (m_LandObject != null)
         {
             // Kendi konumunuz ile "land" objesinin konumunu al ve mesafeyi hesapla
             float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
@@ -341,7 +341,7 @@ namespace RLUnity.Cs_Scripts
         {
             Debug.LogWarning("Land etiketli obje bulunamadı!");
         }
-
+*/
 
         if (!astroDestroyed)
         {
