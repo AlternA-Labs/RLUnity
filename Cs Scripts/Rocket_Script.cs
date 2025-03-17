@@ -367,7 +367,7 @@ namespace RLUnity.Cs_Scripts
             float sign = isApproaching ? 1f : -1f;
             float absDelta = Mathf.Abs(distanceDelta);
 
-            float scalingFactor = 5f;
+            float scalingFactor = 1f;
             float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
             float expReward = baseReward * approachRewardFactor * sign;
 
