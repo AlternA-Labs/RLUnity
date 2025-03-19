@@ -199,6 +199,8 @@ namespace RLUnity.Cs_Scripts
                 _tiltTimeAccumulator = 0f;
                 _nextPenaltyThreshold = penaltyInterval;
             }
+            
+            
 
 
             // 2) Tamamen ters dönmüş (örneğin 150 derece üstü) sayıyoruz
@@ -270,7 +272,38 @@ namespace RLUnity.Cs_Scripts
             {
                 Debug.LogWarning("Land etiketli obje bulunamadı!");
             }
+            if (!astroDestroyed)
+            {
+                // Astro'ya yaklaşma ödülü (distance shaping)
+                float currentDistance = Vector3.Distance(transform.position, astro.position);
+                float distanceDelta = _previousDistanceToAstro - currentDistance;
+
+                // Geçici değişken ile eski mesafeyi saklayalım
+                float previousDistanceForLog = _previousDistanceToAstro;
+
+                // Ödül hesaplaması
+                //AddReward(distanceDelta * 5 * approachRewardFactor);
+
+                // Roket eylemlerini uyguladıktan sonra:
+                float speed = rb.linearVelocity.magnitude;
+                angleFromUp = Vector3.Angle(transform.up, Vector3.up);
+
+                bool isApproaching = distanceDelta > 0;
+                float sign = isApproaching ? 1f : -1f;
+                float absDelta = Mathf.Abs(distanceDelta);
+
+                float scalingFactor = 1f;
+                float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
+                float expReward = baseReward * approachRewardFactor * sign;
+
+                float Reward = distanceDelta * 10;
+                //AddReward(expReward);
+                Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
             
+
+                // Eski mesafeyi güncelle
+                _previousDistanceToAstro = currentDistance;
+            }
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -313,8 +346,8 @@ namespace RLUnity.Cs_Scripts
             if (other.TryGetComponent<Wall>(out Wall fail))
             {
                 //eski degerler reward : -1
-                SetReward(-0.5f);
-                EndEpisode();   
+                //SetReward(-0.5f);
+                //EndEpisode();   
             }
         }
         
@@ -347,38 +380,7 @@ namespace RLUnity.Cs_Scripts
 
 
 
-        if (!astroDestroyed)
-        {
-            // Astro'ya yaklaşma ödülü (distance shaping)
-            float currentDistance = Vector3.Distance(transform.position, astro.position);
-            float distanceDelta = _previousDistanceToAstro - currentDistance;
-
-            // Geçici değişken ile eski mesafeyi saklayalım
-            float previousDistanceForLog = _previousDistanceToAstro;
-
-            // Ödül hesaplaması
-            //AddReward(distanceDelta * 5 * approachRewardFactor);
-
-            // Roket eylemlerini uyguladıktan sonra:
-            float speed = rb.linearVelocity.magnitude;
-            float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
-
-            bool isApproaching = distanceDelta > 0;
-            float sign = isApproaching ? 1f : -1f;
-            float absDelta = Mathf.Abs(distanceDelta);
-
-            float scalingFactor = 1f;
-            float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
-            float expReward = baseReward * approachRewardFactor * sign;
-
-            float Reward = distanceDelta * 10;
-            //AddReward(expReward);
-            Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
-            
-
-            // Eski mesafeyi güncelle
-            _previousDistanceToAstro = currentDistance;
-        }
+        
     }
 
     }
