@@ -346,8 +346,8 @@ namespace RLUnity.Cs_Scripts
             if (other.TryGetComponent<Wall>(out Wall fail))
             {
                 //eski degerler reward : -1
-                //SetReward(-0.5f);
-                //EndEpisode();   
+                SetReward(-10f);
+                EndEpisode();   
             }
         }
         
