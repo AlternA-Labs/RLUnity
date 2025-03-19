@@ -1,17 +1,21 @@
 import os
 import copy
 import torch
+import random
+import numpy as np
+import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import random
+import matplotlib.pyplot as plt
 from collections import deque, namedtuple
 import datetime
 import pytz
-
-from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
+from mlagents_envs.environment import UnityEnvironment
 
+
+# Eğitim öncesi metrikleri saklamak için boş liste
+metrics_log = []
 ##########################################
 # Hiperparametreler
 ##########################################
@@ -286,6 +290,13 @@ while global_step < MAX_STEPS:
         avg_reward = np.mean(episode_rewards[-10:])  # son 10 episodun ortalaması
         print(f"Global Step: {global_step}, Recent Avg Reward: {avg_reward:.2f}")
         print(f"Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}")
+        metrics_log.append({
+            "global_step": global_step,
+            "avg_reward": avg_reward,
+            "actor_loss": actor_loss.item(),
+            "critic_loss": critic_loss.item()
+        })
+
         if avg_reward > best_reward:
             best_reward = avg_reward
             best_actor.load_state_dict(actor.state_dict())
@@ -301,6 +312,8 @@ utc_plus_3 = pytz.timezone('Europe/Istanbul')
 date = datetime.datetime.now(utc_plus_3)
 formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
 
+metrics_df = pd.DataFrame(metrics_log)
+csv_filename = f"training_metrics_{formatted_datetime}.csv"
 if not training_error_occurred:
     os.makedirs("models", exist_ok=True)
     torch.save(actor.state_dict(), f"models/actor_{formatted_datetime}.pth")
@@ -308,3 +321,14 @@ if not training_error_occurred:
     print(f"Models saved: actor_{formatted_datetime}.pth, critic_{formatted_datetime}.pth")
 else:
     print("Training error occurred. Models are not saved.")
+
+#grafik
+plt.figure(figsize=(8, 6))
+plt.plot(metrics_df["global_step"], metrics_df["actor_loss"], color="orange", label="Actor Loss")
+plt.plot(metrics_df["global_step"], metrics_df["critic_loss"], color="blue", label="Critic Loss")
+plt.xlabel("Global Step")
+plt.ylabel("Loss")
+plt.title("Actor ve Critic Loss vs Global Step")
+plt.legend()
+plt.grid(True)
+plt.show()

@@ -28,14 +28,14 @@ namespace RLUnity.Cs_Scripts
         [Header("Penalties / Rewards")]
         [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
         [SerializeField] private float stepPenalty = 0.0001f;  // Zaman cezası (her adım)
-        [SerializeField] private float tiltPenalty = 0.01f;   // Yan yatma cezası (her adım)
+        [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
         [FormerlySerializedAs("AlaboraPenalty")] 
         [SerializeField] private float alaboraPenalty = 1f;    // Ters dönünce (tam alabora) verilecek ceza
 
         [Header("Stability Reward Settings")]
         [SerializeField] private float stableVelocityThreshold = 0.1f;
         [SerializeField] private float stableAngleThreshold = 5f;  // Kaç derecenin altı dik sayılacak
-        [SerializeField] private float stableReward = 0.1f; 
+        [SerializeField] private float stableReward = 0.5f; 
 
         [Header("Approach Reward")]
         [SerializeField] private float approachRewardFactor = 0.1f;  //ekponansiyel ödül katsayısı
@@ -263,7 +263,7 @@ namespace RLUnity.Cs_Scripts
                 if (distance < 1.5f)
                 {
                     Debug.Log("eşşeklik cezası");
-                    AddReward(-0.5f);
+                    AddReward(-0.05f);
                 }
             }
             else
@@ -299,7 +299,7 @@ namespace RLUnity.Cs_Scripts
             // AstroScript'e değerse 
             if (other.TryGetComponent<AstroScript>(out AstroScript half))
             {
-                AddReward(1000f);
+                AddReward(20f);
                 astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = false;
                 astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
                 
@@ -333,7 +333,7 @@ namespace RLUnity.Cs_Scripts
             if (astroDestroyed && (rotx >= -2.5f && rotx <= 2.5f || rotx >= 357.5f)//aci kontrolleri guncellendi
                                && (rotz >= -2.5f && rotz <= 2.5f || rotz >= 357.5f))
             {
-                AddReward(1000f);
+                AddReward(20f);
                 Debug.Log("Success");
                 EndEpisode();    
             }
@@ -371,7 +371,7 @@ namespace RLUnity.Cs_Scripts
             float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
             float expReward = baseReward * approachRewardFactor * sign;
 
-            float Reward = distanceDelta * 100;
+            float Reward = distanceDelta * 10;
             //AddReward(expReward);
             Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
             
