@@ -373,11 +373,7 @@ namespace RLUnity.Cs_Scripts
                 //EndEpisode();   
             }
 
-            if (counter<-25f)
-            {
-                counter = 0f;
-                EndEpisode();
-            }
+            
         }
         
        
@@ -409,7 +405,11 @@ namespace RLUnity.Cs_Scripts
     {
 
 
-
+        if (counter<-25f)
+        {
+            counter = 0f;
+            EndEpisode();
+        }
 
         
     }
