@@ -413,9 +413,10 @@ namespace RLUnity.Cs_Scripts
         AddReward(Reward);
         counter += Reward;
 
-        if (GetCumulativeReward()<-3.0f)
+        if (counter<-3.0f)
         {
             counter = 0f;
+            Debug.Log($"uzaklaşma cezası.");
             EndEpisode();
         }
         Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
