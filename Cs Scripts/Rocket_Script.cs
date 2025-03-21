@@ -49,6 +49,7 @@ namespace RLUnity.Cs_Scripts
         private float _tiltTimeAccumulator = 0f; 
         private float _nextPenaltyThreshold = 1f;
         private GameObject m_LandObject;
+        private float counter = 0f;
 
         //ReSharper disable Unity.PerformanceAnalysis
 
@@ -117,6 +118,7 @@ namespace RLUnity.Cs_Scripts
             if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
             {
                 AddReward(stableReward);
+                counter+=stableReward;
             }
         }
 
@@ -146,10 +148,24 @@ namespace RLUnity.Cs_Scripts
             float thrustInput = actions.ContinuousActions[2];
 
             // Aksiyon sıfırdan farklıysa ufak ceza
-            if (Mathf.Abs(pitchInputX) > 1e-6f) AddReward(-movePenalty);
-            if (Mathf.Abs(pitchInputZ) > 1e-6f) AddReward(-movePenalty);
+            if (Mathf.Abs(pitchInputX) > 1e-6f)
+            {
+                AddReward(-movePenalty);
+                counter-=movePenalty;
+                
+            }
+            
+            if (Mathf.Abs(pitchInputZ) > 1e-6f)
+            {
+                AddReward(-movePenalty);
+                counter-=movePenalty;
+                
+            }
             // thrust için de ceza eklemek isterseniz yorumu açın:
-            if (Mathf.Abs(thrustInput) > 1e-6f) AddReward(4 * movePenalty);
+            if (Mathf.Abs(thrustInput) > 1e-6f)
+            {
+                AddReward(4 * movePenalty);
+                counter+=4 * movePenalty;}
  
             // Roketi yönlendir
             transform.Rotate(pitchInputX * pitchSpeed * Time.deltaTime, 0f, 0f);
@@ -175,11 +191,13 @@ namespace RLUnity.Cs_Scripts
                     // Temel ceza: Aşım miktarına göre ceza
                     float basePenalty = tiltPenalty * currentTiltError;
                     AddReward(-basePenalty);
+                    counter -=basePenalty ;
         
                     // Eğer açı extreme değerin üzerinde ise (bağımsız olarak ek ceza):
                     if (angleFromUp >= extremeTiltAngle)
                     {
                         AddReward(-alaboraPenalty);
+                        counter -=alaboraPenalty ;
                     }
         
                     // Sonraki ceza periyodunu ayarla:
@@ -193,7 +211,9 @@ namespace RLUnity.Cs_Scripts
                 {       
                     // Eğer tilt durumu en az penaltyInterval sürdüyse, fazladan kalan süre için ödül ver
                     float recoveryTime = _tiltTimeAccumulator - penaltyInterval;
-                    AddReward(recoveryReward * recoveryTime);
+                    float rew = recoveryReward * recoveryTime;
+                    AddReward(rew);
+                    counter += rew;
                 }
                 // Sayaçları sıfırlayalım:
                 _tiltTimeAccumulator = 0f;
@@ -266,6 +286,7 @@ namespace RLUnity.Cs_Scripts
                 {
                     Debug.Log("eşşeklik cezası");
                     AddReward(-0.05f);
+                    counter -= 0.05f;
                 }
             }
             else
@@ -297,7 +318,8 @@ namespace RLUnity.Cs_Scripts
                 float expReward = baseReward * approachRewardFactor * sign;
 
                 float Reward = distanceDelta * 10;
-                //AddReward(expReward);
+                AddReward(Reward);
+                
                 Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
             
 
@@ -333,6 +355,7 @@ namespace RLUnity.Cs_Scripts
             if (other.TryGetComponent<AstroScript>(out AstroScript half))
             {
                 AddReward(20f);
+                counter += 20f;
                 astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = false;
                 astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
                 
@@ -348,6 +371,12 @@ namespace RLUnity.Cs_Scripts
                 //eski degerler reward : -1
                 //SetReward(-10f);
                 //EndEpisode();   
+            }
+
+            if (counter<-25f)
+            {
+                counter = 0f;
+                EndEpisode();
             }
         }
         
@@ -367,8 +396,10 @@ namespace RLUnity.Cs_Scripts
                                && (rotz >= -2.5f && rotz <= 2.5f || rotz >= 357.5f))
             {
                 AddReward(20f);
+                counter += 20f;
                 Debug.Log("Success");
-                EndEpisode();    
+                counter = 0f;
+                EndEpisode();
             }
         }
 
