@@ -301,11 +301,10 @@ namespace RLUnity.Cs_Scripts
             if (!astroDestroyed)
             {
                 // Astro'ya yaklaşma ödülü (distance shaping)
-                float currentDistance = Vector3.Distance(transform.position, astro.position);
-                float distanceDelta = _previousDistanceToAstro - currentDistance;
+
 
                 // Geçici değişken ile eski mesafeyi saklayalım
-                float previousDistanceForLog = _previousDistanceToAstro;
+                //float previousDistanceForLog = _previousDistanceToAstro;
 
                 // Ödül hesaplaması
                 //AddReward(distanceDelta * 5 * approachRewardFactor);
@@ -314,22 +313,20 @@ namespace RLUnity.Cs_Scripts
                 float speed = rb.linearVelocity.magnitude;
                 angleFromUp = Vector3.Angle(transform.up, Vector3.up);
 
-                bool isApproaching = distanceDelta > 0;
-                float sign = isApproaching ? 1f : -1f;
-                float absDelta = Mathf.Abs(distanceDelta);
+                //bool isApproaching = distanceDelta > 0;
+                //float sign = isApproaching ? 1f : -1f;
+                //float absDelta = Mathf.Abs(distanceDelta);
 
-                float scalingFactor = 1f;
-                float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
-                float expReward = baseReward * approachRewardFactor * sign;
+                //float scalingFactor = 1f;
+                //float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
+                //float expReward = baseReward * approachRewardFactor * sign;
 
-                float Reward = distanceDelta * 10;
-                AddReward(Reward);
+
                 
-                Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
-            
+                
 
                 // Eski mesafeyi güncelle
-                _previousDistanceToAstro = currentDistance;
+                //_previousDistanceToAstro = currentDistance;
             }
         }
 
@@ -408,14 +405,22 @@ namespace RLUnity.Cs_Scripts
 
     void Update()
     {
+        float previousDistanceForLog = _previousDistanceToAstro;
+        float currentDistance = Vector3.Distance(transform.position, astro.position);
+        float distanceDelta = _previousDistanceToAstro - currentDistance;
+        bool isApproaching = distanceDelta > 0;
+        float Reward = distanceDelta ;
+        AddReward(Reward);
+        counter += Reward;
 
-
-        if (GetCumulativeReward()<-25f)
+        if (GetCumulativeReward()<-3.0f)
         {
             counter = 0f;
             EndEpisode();
         }
+        Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
 
+        _previousDistanceToAstro = currentDistance;
         
     }
 
