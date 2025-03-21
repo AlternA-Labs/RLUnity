@@ -56,6 +56,11 @@ namespace RLUnity.Cs_Scripts
 
         public override void OnEpisodeBegin()
         {
+            //sürtünme edkledim !!!!!!
+            rb.linearDamping = 1.5f;
+            rb.angularDamping = 1f;
+            //sonradan silebiliriz 
+
             m_LandObject= GameObject.FindGameObjectWithTag("land");
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 70;
@@ -405,7 +410,7 @@ namespace RLUnity.Cs_Scripts
     {
 
 
-        if (counter<-25f)
+        if (GetCumulativeReward()<-25f)
         {
             counter = 0f;
             EndEpisode();

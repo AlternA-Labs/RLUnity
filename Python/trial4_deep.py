@@ -70,6 +70,25 @@ class PrioritizedReplayBuffer:
         for idx, error in zip(indices, td_errors):
             self.priorities[idx] = abs(error) + 1e-5
 
+
+def plot(metrics_log1):
+    metrics_df1 = pd.DataFrame(metrics_log1)
+    # grafik
+    plt.figure(figsize=(12, 10))
+    plt.plot(metrics_df1["global_step"], metrics_df1["actor_loss"], color="orange", label="Actor Loss")
+    plt.plot(metrics_df1["global_step"], metrics_df1["critic_loss"], color="blue", label="Critic Loss")
+    plt.xlabel("Global Step")
+    plt.ylabel("Loss")
+    plt.title("Actor ve Critic Loss vs Global Step")
+    plt.legend()
+    plt.grid(True)
+    plt.figure(figsize=(12, 10))
+    plt.plot(metrics_df1["global_step"], metrics_df1["avg_reward"], color="pink", label="Avearge Reward")
+    plt.xlabel("Global Step")
+    plt.ylabel("Average Reward")
+    plt.title("Average Reward vs Global Step")
+    plt.show()
+
 ##########################################
 # Actor ve Critic Ağları
 ##########################################
@@ -201,6 +220,7 @@ while global_step < MAX_STEPS:
     except Exception as e:
         print(f"Error during environment step: {e}")
         training_error_occurred = True
+        plot(metrics_log)
         break
     global_step += 1
 
@@ -312,7 +332,7 @@ utc_plus_3 = pytz.timezone('Europe/Istanbul')
 date = datetime.datetime.now(utc_plus_3)
 formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
 
-metrics_df = pd.DataFrame(metrics_log)
+
 csv_filename = f"training_metrics_{formatted_datetime}.csv"
 if not training_error_occurred:
     os.makedirs("models", exist_ok=True)
@@ -322,15 +342,4 @@ if not training_error_occurred:
 else:
     print("Training error occurred. Models are not saved.")
 
-#grafik
-plt.figure(figsize=(8, 6))
-plt.plot(metrics_df["global_step"], metrics_df["actor_loss"], color="orange", label="Actor Loss")
-plt.plot(metrics_df["global_step"], metrics_df["critic_loss"], color="blue", label="Critic Loss")
-plt.xlabel("Global Step")
-plt.ylabel("Loss")
-plt.title("Actor ve Critic Loss vs Global Step")
-plt.legend()
-plt.grid(True)
-plt.figure(figsize=(8, 6))
-plt.plot(metrics_df["global_step"], metrics_df["avg_reward"], color="pink", label="Avearge Reward")
-plt.show()
+plot(metrics_log)
