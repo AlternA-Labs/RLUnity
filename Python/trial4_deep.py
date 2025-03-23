@@ -69,6 +69,10 @@ class PrioritizedReplayBuffer:
     def update_priorities(self, indices, td_errors):
         for idx, error in zip(indices, td_errors):
             self.priorities[idx] = abs(error) + 1e-5
+#dates
+utc_plus_3 = pytz.timezone('Europe/Istanbul')
+date = datetime.datetime.now(utc_plus_3)
+formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
 
 
 def plot(metrics_log1):
@@ -80,6 +84,8 @@ def plot(metrics_log1):
     plt.xlabel("Global Step")
     plt.ylabel("Loss")
     plt.title("Actor ve Critic Loss vs Global Step")
+    plt.figtext(0.95, 0.01, f'{formatted_datetime}',
+                ha='right', va='bottom', fontsize=10, color='gray')
     plt.legend()
     plt.grid(True)
     plt.figure(figsize=(12, 10))
@@ -87,6 +93,8 @@ def plot(metrics_log1):
     plt.xlabel("Global Step")
     plt.ylabel("Average Reward")
     plt.title("Average Reward vs Global Step")
+    plt.figtext(0.95, 0.01, f'{formatted_datetime}',
+                ha='right', va='bottom', fontsize=10, color='gray')
     plt.show()
 
 ##########################################
@@ -328,9 +336,6 @@ while global_step < MAX_STEPS:
 env.close()
 print("Training completed.")
 
-utc_plus_3 = pytz.timezone('Europe/Istanbul')
-date = datetime.datetime.now(utc_plus_3)
-formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
 
 
 csv_filename = f"training_metrics_{formatted_datetime}.csv"
