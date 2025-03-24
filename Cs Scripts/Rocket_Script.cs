@@ -403,7 +403,7 @@ namespace RLUnity.Cs_Scripts
 
     }
 
-    void Update()
+    void FixedUpdate()
     {
         float previousDistanceForLog = _previousDistanceToAstro;
         float currentDistance = Vector3.Distance(transform.position, astro.position);
@@ -412,14 +412,20 @@ namespace RLUnity.Cs_Scripts
         float Reward = distanceDelta ;
         AddReward(Reward);
         counter += Reward;
-
+        Debug.Log($"Approach: {isApproaching} Counter: {counter}, Distance: {currentDistance}, Delta: {distanceDelta}");
         if (counter<-3.0f)
         {
             counter = 0f;
             Debug.Log($"uzaklaşma cezası.");
             EndEpisode();
         }
-        Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
+        if (counter < 0f) // -3 yerine 0 yapalım, daha geniş bir test için
+        {
+            counter = 0f;
+            Debug.Log("if bloğuna girildi! Counter negatif.");
+            EndEpisode();
+        }
+        //Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
 
         _previousDistanceToAstro = currentDistance;
         
