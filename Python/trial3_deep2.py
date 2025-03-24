@@ -8,6 +8,9 @@ from collections import deque, namedtuple
 import datetime
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
+import matplotlib.pyplot as plt
+import pytz
+import pandas as pd
 
 ##########################################
 # Hiperparametreler
@@ -23,7 +26,7 @@ TAU = 0.005                     # Soft update katsayısı
 NOISE_STD = 0.15
 
 device = torch.device("mps" )#if torch.mps.is_available() else "cpu")
-
+metrics_log = []
 ##########################################
 # Replay Buffer
 ##########################################
@@ -41,6 +44,37 @@ class ReplayBuffer:
 
     def __len__(self):
         return len(self.memory)
+
+
+
+#dates
+utc_plus_3 = pytz.timezone('Europe/Istanbul')
+date = datetime.datetime.now(utc_plus_3)
+notformatted_datetime=date.strftime("%Y-%m-%d %H:%M")
+formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
+training_error_occurred=False
+
+def plot(metrics_log1):
+    metrics_df1 = pd.DataFrame(metrics_log1)
+    # grafik
+    plt.figure(figsize=(12, 10))
+    plt.plot(metrics_df1["global_step"], metrics_df1["actor_loss"], color="orange", label="Actor Loss")
+    plt.plot(metrics_df1["global_step"], metrics_df1["critic_loss"], color="blue", label="Critic Loss")
+    plt.xlabel("Global Step")
+    plt.ylabel("Loss")
+    plt.title("Actor ve Critic Loss vs Global Step")
+    plt.figtext(0.95, 0.01, f'{notformatted_datetime}',
+                ha='right', va='bottom', fontsize=10, color='gray')
+    plt.legend()
+    plt.grid(True)
+    plt.figure(figsize=(12, 10))
+    plt.plot(metrics_df1["global_step"], metrics_df1["avg_reward"], color="pink", label="Avearge Reward")
+    plt.xlabel("Global Step")
+    plt.ylabel("Average Reward")
+    plt.title("Average Reward vs Global Step")
+    plt.figtext(0.95, 0.01, f'{notformatted_datetime}',
+                ha='right', va='bottom', fontsize=10, color='gray')
+    plt.show()
 
 ##########################################
 # Actor (Policy) Ağı
@@ -131,7 +165,7 @@ def soft_update(target_net, source_net, tau):
 # Eğitim Döngüsü
 ##########################################
 global_step = 0
-
+episode_rewards = []
 # İlk adım verilerini çekiyoruz
 decision_steps, terminal_steps = env.get_steps(behavior_name)
 
@@ -197,7 +231,7 @@ while global_step < MAX_STEPS:
         # Log
         agent_rewards[agent_id] += reward
         print(f"[Step {global_step}] Agent {agent_id} done. Episode Reward = {agent_rewards[agent_id]:.2f}")
-
+        episode_rewards.append(agent_rewards[agent_id])
         # Agent'i sıfırlıyoruz (genelde OnEpisodeBegin unity tarafında)
         # Yine de python tarafında old state vb. güncelle:
         agent_states[agent_id] = next_obs
@@ -260,16 +294,20 @@ while global_step < MAX_STEPS:
 
     # İlerleme logu
     if global_step % 1000 == 0:
+        avg_reward = np.mean(episode_rewards[-10:])
         print(f"Step: {global_step}, Replay Buffer: {len(replay_buffer)}, Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}")
-
+        metrics_log.append({
+            "global_step": global_step,
+            "avg_reward": avg_reward,
+            "actor_loss": actor_loss.item(),
+            "critic_loss": critic_loss.item()
+        })
 # Eğitim bitince ortamı kapat
 env.close()
 print("Eğitim tamamlandı.")
-import pytz
 
-utc_plus_3 = pytz.timezone('Europe/Istanbul')
-date=datetime.datetime.now(utc_plus_3)
-formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
+plot(metrics_log)
+
 print(formatted_datetime)
 os.makedirs("models", exist_ok=True)
 torch.save(actor.state_dict(), f"models/actor{formatted_datetime}.pth")

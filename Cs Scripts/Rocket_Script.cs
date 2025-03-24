@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
@@ -54,7 +55,36 @@ namespace RLUnity.Cs_Scripts
         private float counter = 0f;
 
         //ReSharper disable Unity.PerformanceAnalysis
+        // Loglama için yeni eklenen alanlar
+        private string logFilePath;
+        private StreamWriter logWriter;
+        private bool isLogWriterClosed = false;
 
+        // Başlangıçta log dosyasını ayarla
+        private void LogMessage(string message)
+        {
+            try
+            {
+                if (logWriter != null && !isLogWriterClosed)
+                {
+                    logWriter.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
+                    logWriter.Flush(); // Her yazmada dosyaya kaydedilmesini sağlar
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Log yazma hatası: {e.Message}");
+            }
+        }
+        private void Awake()
+        {
+            Debug.Log("Log dosyası yolu: " + logFilePath);
+            // Log dosyasının yolu: PersistentDataPath kullanarak platformdan bağımsız bir yol
+            logFilePath = Path.Combine(Application.persistentDataPath, "RocketAgent_Log1.txt");
+            logWriter = new StreamWriter(logFilePath, true); // true: dosyaya ekleme yapar
+            isLogWriterClosed = false;
+            LogMessage("[INFO] Uygulama başlatıldı: " + DateTime.Now);
+        }
 
         public override void OnEpisodeBegin()
         {
@@ -127,7 +157,9 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(stableReward);
                 counter+=stableReward;
+                LogMessage($"[Reward] Stabilite ödülü: {stableReward}");
             }
+            LogMessage($"[Action] Episode başladı - Pozisyon: {transform.localPosition}, Hız: {rb.linearVelocity}");
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -154,12 +186,15 @@ namespace RLUnity.Cs_Scripts
             float pitchInputX = actions.ContinuousActions[0];
             float pitchInputZ = actions.ContinuousActions[1];
             float thrustInput = actions.ContinuousActions[2];
+            //pitch için abs yapıp yapılan pitch *0.1 ceza olsun. unutma.
+            LogMessage($"[Action] PitchX: {pitchInputX}, PitchZ: {pitchInputZ}, Thrust: {thrustInput}");
 
             // Aksiyon sıfırdan farklıysa ufak ceza
             if (Mathf.Abs(pitchInputX) > 1e-6f)
             {
                 AddReward(-movePenalty);
                 counter-=movePenalty;
+                LogMessage($"[Reward] PitchX hareket cezası: {-movePenalty}");
                 
             }
             
@@ -167,13 +202,16 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(-movePenalty);
                 counter-=movePenalty;
+                LogMessage($"[Reward] PitchZ hareket cezası: {-movePenalty}");
                 
             }
             // thrust için de ceza eklemek isterseniz yorumu açın:
             if (Mathf.Abs(thrustInput) > 1e-6f)
             {
                 AddReward(4 * movePenalty);
-                counter+=4 * movePenalty;}
+                counter+=4 * movePenalty;
+                LogMessage($"[Reward] Thrust ödülü: {4 * movePenalty}");
+            }
  
             // Roketi yönlendir
             transform.Rotate(pitchInputX * pitchSpeed * Time.deltaTime, 0f, 0f);
@@ -184,7 +222,7 @@ namespace RLUnity.Cs_Scripts
             float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
             //Debug.Log($"angleFromUp: {angleFromUp}");
         
-            Debug.Log($"Counter: {counter}");
+            LogMessage($"[State] Pozisyon: {transform.localPosition}, Hız: {rb.linearVelocity}, Açı: {angleFromUp}");
 
             if (angleFromUp > tiltThreshold)
             {       
@@ -200,12 +238,14 @@ namespace RLUnity.Cs_Scripts
                     float basePenalty = tiltPenalty * currentTiltError;
                     AddReward(-basePenalty);
                     counter -=basePenalty ;
+                    LogMessage($"[Reward] Eğim cezası: {-basePenalty}");
         
                     // Eğer açı extreme değerin üzerinde ise (bağımsız olarak ek ceza):
                     if (angleFromUp >= extremeTiltAngle)
                     {
                         AddReward(-alaboraPenalty);
                         counter -=alaboraPenalty ;
+                        LogMessage($"[Reward] Aşırı eğim cezası: {-alaboraPenalty}");
                     }
         
                     // Sonraki ceza periyodunu ayarla:
@@ -222,6 +262,7 @@ namespace RLUnity.Cs_Scripts
                     float rew = recoveryReward * recoveryTime;
                     AddReward(rew);
                     counter += rew;
+                    LogMessage($"[Reward] Düzeltme ödülü: {rew}");
                 }
                 // Sayaçları sıfırlayalım:
                 _tiltTimeAccumulator = 0f;
@@ -295,6 +336,7 @@ namespace RLUnity.Cs_Scripts
                     Debug.Log("eşşeklik cezası");
                     AddReward(-0.05f);
                     counter -= 0.05f;
+                    LogMessage("[Reward] Landing alanına yakınlık cezası: -0.05");
                 }
             }
             else
@@ -363,6 +405,7 @@ namespace RLUnity.Cs_Scripts
                 counter += 20f;
                 astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = false;
                 astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
+                LogMessage("[Reward] Astro çarpması ödülü: 20");
                 
                 astroDestroyed = true;
                 Debug.Log("Astro Collision, rewarded");
@@ -398,6 +441,7 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(20f);
                 counter += 20f;
+                LogMessage("[Reward] Başarılı iniş ödülü: 20");
                 Debug.Log("Success");
                 counter = 0f;
                 EndEpisode();
@@ -415,11 +459,15 @@ namespace RLUnity.Cs_Scripts
         float Reward = distanceDelta ;
         AddReward(Reward);
         counter += Reward;
+        LogMessage($"[Reward] Yaklaşma/uzaklaşma ödülü: {Reward}, Mesafe: {currentDistance}");
+        LogMessage($"[*] Current Reward: {GetCumulativeReward()}");
         Debug.Log($"Approach: {isApproaching} Counter: {counter}, Distance: {currentDistance}, Delta: {distanceDelta}");
-        if (currentDistance>40f)
+        if (currentDistance>15f)
         {
             counter = 0f;
             Debug.Log($"uzaklaşma cezası.");
+            AddReward(-10f);
+            LogMessage("[Action] Uzaklaşma cezası, episode sonu");
             EndEpisode();
         }
         
@@ -427,6 +475,27 @@ namespace RLUnity.Cs_Scripts
 
         _previousDistanceToAstro = currentDistance;
         
+    }
+    // Uygulama kapanırken log dosyasını kapat
+    private void OnApplicationQuit()
+    {
+        if (!isLogWriterClosed && logWriter != null)
+        {
+            LogMessage("[INFO] Uygulama kapatıldı");
+            logWriter.Close();
+            isLogWriterClosed = true;
+        }
+    }
+
+    // Hata durumunda loglama ve dosyayı kapatma
+    private void OnDestroy()
+    {
+        if (!isLogWriterClosed && logWriter != null)
+        {
+            LogMessage("[ERROR] Beklenmedik kapatma");
+            logWriter.Close();
+            isLogWriterClosed = true;
+        }
     }
 
     }
