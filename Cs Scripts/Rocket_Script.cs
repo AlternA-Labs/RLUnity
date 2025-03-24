@@ -1,8 +1,10 @@
+using System;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Random = UnityEngine.Random;
 
 namespace RLUnity.Cs_Scripts
 {
@@ -56,6 +58,7 @@ namespace RLUnity.Cs_Scripts
 
         public override void OnEpisodeBegin()
         {
+            counter = 0f;
             //sürtünme edkledim !!!!!!
             rb.linearDamping = 1.5f;
             rb.angularDamping = 1f;
@@ -181,7 +184,7 @@ namespace RLUnity.Cs_Scripts
             float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
             //Debug.Log($"angleFromUp: {angleFromUp}");
         
-
+            Debug.Log($"Counter: {counter}");
 
             if (angleFromUp > tiltThreshold)
             {       
@@ -403,7 +406,7 @@ namespace RLUnity.Cs_Scripts
 
     }
 
-    void FixedUpdate()
+    void Update()
     {
         float previousDistanceForLog = _previousDistanceToAstro;
         float currentDistance = Vector3.Distance(transform.position, astro.position);
@@ -413,18 +416,13 @@ namespace RLUnity.Cs_Scripts
         AddReward(Reward);
         counter += Reward;
         Debug.Log($"Approach: {isApproaching} Counter: {counter}, Distance: {currentDistance}, Delta: {distanceDelta}");
-        if (counter<-3.0f)
+        if (currentDistance>40f)
         {
             counter = 0f;
             Debug.Log($"uzaklaşma cezası.");
             EndEpisode();
         }
-        if (counter < 0f) // -3 yerine 0 yapalım, daha geniş bir test için
-        {
-            counter = 0f;
-            Debug.Log("if bloğuna girildi! Counter negatif.");
-            EndEpisode();
-        }
+        
         //Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
 
         _previousDistanceToAstro = currentDistance;
