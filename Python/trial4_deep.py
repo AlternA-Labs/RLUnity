@@ -73,7 +73,7 @@ class PrioritizedReplayBuffer:
 utc_plus_3 = pytz.timezone('Europe/Istanbul')
 date = datetime.datetime.now(utc_plus_3)
 formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
-
+training_error_occurred=False
 
 def plot(metrics_log1):
     metrics_df1 = pd.DataFrame(metrics_log1)
@@ -339,6 +339,7 @@ print("Training completed.")
 
 
 csv_filename = f"training_metrics_{formatted_datetime}.csv"
+plot(metrics_log)
 if not training_error_occurred:
     os.makedirs("models", exist_ok=True)
     torch.save(actor.state_dict(), f"models/actor_{formatted_datetime}.pth")
@@ -346,5 +347,10 @@ if not training_error_occurred:
     print(f"Models saved: actor_{formatted_datetime}.pth, critic_{formatted_datetime}.pth")
 else:
     print("Training error occurred. Models are not saved.")
-
-plot(metrics_log)
+    
+"""Training completed.
+Traceback (most recent call last):
+  File "/Volumes/Utku/Rl_rocket/Assets/RLUnity/Python/trial4_deep.py", line 342, in <module>
+    if not training_error_occurred:
+NameError: name 'training_error_occurred' is not defined
+"""
