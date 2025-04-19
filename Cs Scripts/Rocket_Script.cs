@@ -45,7 +45,10 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] public float tiltThreshold = 10f;            // Başlangıç ceza eşiği
         [SerializeField] private float recoveryReward = 0.1f;        // Düzeltme ödül katsayısı
         [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
-        [SerializeField] private float penaltyInterval = 1f;  // belirli bir açı için izin verilen süre
+        [SerializeField] private float penaltyInterval = 1f;
+        [Header("Astro Position")]
+        [SerializeField] private float astroBaseHeight = 1f;      // ilk bölümde yükseklik
+        [SerializeField] private float astroStepFactor = 0.0002f;// belirli bir açı için izin verilen süre
     
         // Önceki mesafeyi tutarak yaklaşma/uzaklaşma hesabı
         private float _previousDistanceToAstro = 0f;
@@ -53,6 +56,9 @@ namespace RLUnity.Cs_Scripts
         private float _nextPenaltyThreshold = 1f;
         private GameObject m_LandObject;
         private float counter = 0f;
+        private int episodeIndex = 0;
+        private long stepCount = 0;
+
 
         //ReSharper disable Unity.PerformanceAnalysis
         // Loglama için yeni eklenen alanlar
@@ -88,6 +94,9 @@ namespace RLUnity.Cs_Scripts
 
         public override void OnEpisodeBegin()
         {
+            episodeIndex++;
+            LogMessage("");
+            LogMessage($"--------- EPISODE {episodeIndex} START ---------");   // ← ekle
             counter = 0f;
             //sürtünme edkledim !!!!!!
             rb.linearDamping = 1.5f;
@@ -100,7 +109,28 @@ namespace RLUnity.Cs_Scripts
             // Bölüm (episode) başlangıcı
             thrustForce = 1000f * Time.deltaTime;
             transform.localPosition = new Vector3(0, 1f, 0);
+            
+            
             astroDestroyed = false;
+            // 1) Yeni astro yüksekliği:  y = 0.75  →  4.5  (saturasyonlu)
+            float newAstroY = Mathf.Min(
+                0.75f + stepCount * astroStepFactor,   // lineer artış
+                4.50f                                 // üst sınır
+            );
+
+            // 2) X‑Z’de roketin yakınında  (±2 m)
+            float offsetX = Random.Range(-2f, 2f);
+            float offsetZ = Random.Range(-2f, 2f);
+
+            astro.localPosition = new Vector3(
+                transform.localPosition.x + offsetX,
+                newAstroY,
+                transform.localPosition.z + offsetZ
+            );
+
+            // Yeni mesafeyi kaydet
+            _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
+
             astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = true;//tekrar gorunur yap
             astroCollider.gameObject.GetComponent<BoxCollider>().enabled = true;//collideri ac (yuksek ihitmalle silincek)
 
@@ -141,7 +171,9 @@ namespace RLUnity.Cs_Scripts
             // Astro mesafesini kaydet
             if (!astroDestroyed)
             {
-                _previousDistanceToAstro = Vector3.Distance(transform.localPosition, astro.localPosition);
+                //_previousDistanceToAstro = Vector3.Distance(transform.localPosition, astro.localPosition);
+                _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
+
             }
         
             // =========================
@@ -172,17 +204,27 @@ namespace RLUnity.Cs_Scripts
             // Astro konumunu da ekleyelim
             if (!astroDestroyed)
             {
-                sensor.AddObservation(astro.localPosition);
+                //sensor.AddObservation(astro.localPosition);
+                
+                Vector3 dir   = astro.position - transform.position;  // world space
+                sensor.AddObservation(dir.normalized);                // 3  (‑1…1)
+                sensor.AddObservation(dir.magnitude * 0.05f); 
+                //bu üç satır sonradan eklendi. sorun çıkması halinde üç satır silinip yukarıdaki yorum satırı geri kullanıma açılabilir
             }
             else
             {
-                sensor.AddObservation(landingSite.localPosition);//---> Buraya landing padin transfromunu koy yeni obje yaratip.
+                //sensor.AddObservation(landingSite.localPosition);//---> Buraya landing padin transfromunu koy yeni obje yaratip.
+                Vector3 dir   = landingSite.position - transform.position;
+                sensor.AddObservation(dir.normalized);                
+                sensor.AddObservation(dir.magnitude * 0.05f);  
+                //bu üç satır sonradan eklendi. sorun çıkması halinde üç satır silinip yukarıdaki yorum satırı geri kullanıma açılabilir
             }
         }
 
         // ReSharper disable Unity.PerformanceAnalysis
         public override void OnActionReceived(ActionBuffers actions)
         {
+            stepCount++;
             float pitchInputX = actions.ContinuousActions[0];
             float pitchInputZ = actions.ContinuousActions[1];
             float thrustInput = actions.ContinuousActions[2];
@@ -373,6 +415,20 @@ namespace RLUnity.Cs_Scripts
                 // Eski mesafeyi güncelle
                 //_previousDistanceToAstro = currentDistance;
             }
+            /* ----- YENİ: hizalanma + ileri hız ödülü ----- */
+            if (!astroDestroyed)
+            {
+                Vector3 dir      = (astro.position - transform.position).normalized;
+                float   align    = Vector3.Dot(transform.up, dir);          // 1 → hedefe bakıyor
+                float   fwdSpeed = Vector3.Dot(rb.linearVelocity, dir);     // hedefe doğru hız
+
+                AddReward(0.01f * align);
+                AddReward(0.002f * fwdSpeed);
+                
+                //LogMessage($"[*] StepCumReward: {GetCumulativeReward():F3}");
+                LogMessage($"[*] Step {stepCount}  CumReward: {GetCumulativeReward():F3}");
+
+            }
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -417,8 +473,9 @@ namespace RLUnity.Cs_Scripts
             if (other.TryGetComponent<Wall>(out Wall fail))
             {
                 //eski degerler reward : -1
-                //SetReward(-10f);
-                //EndEpisode();   
+                SetReward(-20f);
+                LogMessage("[Reward] Duvar çarpması cezası: -20");
+                EndEpisode();   
             }
 
             
@@ -452,6 +509,7 @@ namespace RLUnity.Cs_Scripts
 
     void Update()
     {
+        /*
         float previousDistanceForLog = _previousDistanceToAstro;
         float currentDistance = Vector3.Distance(transform.position, astro.position);
         float distanceDelta = _previousDistanceToAstro - currentDistance;
@@ -474,7 +532,7 @@ namespace RLUnity.Cs_Scripts
         //Debug.Log($"Approach: {isApproaching} DistanceDelta: {distanceDelta}, ExpReward: {Reward} Previous: {previousDistanceForLog}, Current: {currentDistance}");
 
         _previousDistanceToAstro = currentDistance;
-        
+        */
     }
     // Uygulama kapanırken log dosyasını kapat
     private void OnApplicationQuit()
