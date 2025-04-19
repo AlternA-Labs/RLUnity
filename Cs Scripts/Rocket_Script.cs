@@ -196,30 +196,27 @@ namespace RLUnity.Cs_Scripts
 
         public override void CollectObservations(VectorSensor sensor)
         {
-            // Temel gözlemler
-            sensor.AddObservation(transform.localPosition);
-            sensor.AddObservation(transform.localRotation);
-            sensor.AddObservation(rb.linearVelocity);
+            // 1) Astro’ya birim yön vektörü (3 float)
+            Vector3 dir = (!astroDestroyed 
+                              ? astro.position 
+                              : landingSite.position)
+                          - transform.position;
+            sensor.AddObservation(dir.normalized);
 
-            // Astro konumunu da ekleyelim
-            if (!astroDestroyed)
-            {
-                //sensor.AddObservation(astro.localPosition);
-                
-                Vector3 dir   = astro.position - transform.position;  // world space
-                sensor.AddObservation(dir.normalized);                // 3  (‑1…1)
-                sensor.AddObservation(dir.magnitude * 0.05f); 
-                //bu üç satır sonradan eklendi. sorun çıkması halinde üç satır silinip yukarıdaki yorum satırı geri kullanıma açılabilir
-            }
-            else
-            {
-                //sensor.AddObservation(landingSite.localPosition);//---> Buraya landing padin transfromunu koy yeni obje yaratip.
-                Vector3 dir   = landingSite.position - transform.position;
-                sensor.AddObservation(dir.normalized);                
-                sensor.AddObservation(dir.magnitude * 0.05f);  
-                //bu üç satır sonradan eklendi. sorun çıkması halinde üç satır silinip yukarıdaki yorum satırı geri kullanıma açılabilir
-            }
+            // 2) Ham mesafe (1 float)
+            sensor.AddObservation(dir.magnitude);
+
+            // 3) Hedefe yönelik hız bileşeni (1 float)
+            float fwdSpeed = Vector3.Dot(rb.velocity, dir.normalized);
+            sensor.AddObservation(fwdSpeed);
+
+            // 4) Roketin “up” vektörü (3 float)
+            sensor.AddObservation(transform.up);
+
+            // 5) Ham hız vektörü (3 float)
+            sensor.AddObservation(rb.velocity);
         }
+
 
         // ReSharper disable Unity.PerformanceAnalysis
         public override void OnActionReceived(ActionBuffers actions)
