@@ -112,9 +112,9 @@ namespace RLUnity.Cs_Scripts
             
             
             astroDestroyed = false;
-            // 1) Yeni astro yüksekliği:  y = 0.75  →  4.5  (saturasyonlu)
+            // 1) Yeni astro yüksekliği:  y = 1.0  →  4.5  (saturasyonlu)
             float newAstroY = Mathf.Min(
-                0.75f + stepCount * astroStepFactor,   // lineer artış
+                1.0f + stepCount * astroStepFactor,   // lineer artış
                 4.50f                                 // üst sınır
             );
 
@@ -207,15 +207,16 @@ namespace RLUnity.Cs_Scripts
             sensor.AddObservation(dir.magnitude);
 
             // 3) Hedefe yönelik hız bileşeni (1 float)
-            float fwdSpeed = Vector3.Dot(rb.velocity, dir.normalized);
+            float fwdSpeed = Vector3.Dot(rb.linearVelocity, dir.normalized);
             sensor.AddObservation(fwdSpeed);
 
             // 4) Roketin “up” vektörü (3 float)
             sensor.AddObservation(transform.up);
 
             // 5) Ham hız vektörü (3 float)
-            sensor.AddObservation(rb.velocity);
+            sensor.AddObservation(rb.linearVelocity);
         }
+
 
 
         // ReSharper disable Unity.PerformanceAnalysis
