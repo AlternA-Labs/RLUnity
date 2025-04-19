@@ -457,14 +457,15 @@ namespace RLUnity.Cs_Scripts
             // AstroScript'e değerse 
             if (other.TryGetComponent<AstroScript>(out AstroScript half))
             {
-                AddReward(20f);
-                counter += 20f;
+                AddReward(10f);
+                counter += 10f;//eski hali =20, v1.2 güncellemesi
                 astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = false;
                 astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
                 LogMessage("[Reward] Astro çarpması ödülü: 20");
                 
                 astroDestroyed = true;
                 Debug.Log("Astro Collision, rewarded");
+                EndEpisode();//v1.2 eklemesi
             }
             
             
