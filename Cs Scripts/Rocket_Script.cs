@@ -108,7 +108,7 @@ namespace RLUnity.Cs_Scripts
             Application.targetFrameRate = 70;
             // Bölüm (episode) başlangıcı
             thrustForce = 1000f * Time.deltaTime;
-            transform.localPosition = new Vector3(0, 1f, 0);
+            //transform.localPosition = new Vector3(0, 1f, 0);
             
             
             astroDestroyed = false;
@@ -119,8 +119,8 @@ namespace RLUnity.Cs_Scripts
             );
 
             // 2) X‑Z’de roketin yakınında  (±2 m)
-            float offsetX = Random.Range(-2f, 2f);
-            float offsetZ = Random.Range(-2f, 2f);
+            float offsetX = Random.Range(0f, 0f);//-+2 idi
+            float offsetZ = Random.Range(0f, 0f);//-+2 idi
 
             astro.localPosition = new Vector3(
                 transform.localPosition.x + offsetX,
@@ -202,6 +202,7 @@ namespace RLUnity.Cs_Scripts
                               : landingSite.position)
                           - transform.position;
             sensor.AddObservation(dir.normalized);
+            Debug.Log($"Astro position: {dir.normalized}");
 
             // 2) Ham mesafe (1 float)
             sensor.AddObservation(dir.magnitude);
@@ -215,6 +216,26 @@ namespace RLUnity.Cs_Scripts
 
             // 5) Ham hız vektörü (3 float)
             sensor.AddObservation(rb.linearVelocity);
+            // 6) Raycast ile duvar mesafeleri (5 yönde)
+            
+            RaycastHit hit;
+            
+            float forwardDist = Physics.Raycast(transform.position, transform.forward, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(forwardDist);
+
+            float leftDist = Physics.Raycast(transform.position, -transform.right, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(leftDist);
+
+            float rightDist = Physics.Raycast(transform.position, transform.right, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(rightDist);
+
+            float backDist = Physics.Raycast(transform.position, -transform.forward, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(backDist);
+            // UP (yukarı)
+            float upDist = Physics.Raycast(transform.position, transform.up, out hit, 15f) ? hit.distance : 15f;
+            sensor.AddObservation(upDist);
+            //Debug.Log($"forward: {forwardDist}, left: {leftDist}, right: {rightDist}, back: {backDist}, up: {upDist}");
+
         }
 
 
