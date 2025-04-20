@@ -16,9 +16,9 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private Transform landingSite;
         [SerializeField] private Rigidbody rb;
         [SerializeField] private GameObject spawnAstro;
-        [SerializeField] private GameObject newAstro;
-        [SerializeField] private GameObject astroRenderer;
-        [SerializeField] private GameObject astroCollider;
+ //       [SerializeField] private GameObject newAstro;
+ //       [SerializeField] private GameObject astroRenderer;
+   //     [SerializeField] private GameObject astroCollider;
         [FormerlySerializedAs("AstroDestroyed")] 
         [SerializeField] private bool astroDestroyed;
     
@@ -65,6 +65,10 @@ namespace RLUnity.Cs_Scripts
         private string logFilePath;
         private StreamWriter logWriter;
         private bool isLogWriterClosed = false;
+        
+        private GameObject  _astroGO;
+        private SkinnedMeshRenderer _astroRenderer;
+        private SphereCollider _astroCollider;
 
         // Başlangıçta log dosyasını ayarla
         private void LogMessage(string message)
@@ -90,6 +94,13 @@ namespace RLUnity.Cs_Scripts
             logWriter = new StreamWriter(logFilePath, true); // true: dosyaya ekleme yapar
             isLogWriterClosed = false;
             LogMessage("[INFO] Uygulama başlatıldı: " + DateTime.Now);
+            
+            _astroGO = Instantiate(spawnAstro, Vector3.zero, Quaternion.identity);
+            _astroGO.tag = "Astro";
+            astro   = _astroGO.transform;
+            _astroRenderer = _astroGO.GetComponentInChildren<SkinnedMeshRenderer>();
+            _astroCollider = _astroGO.GetComponentInChildren<SphereCollider>();
+            astroDestroyed = false;
         }
 
         public override void OnEpisodeBegin()
@@ -106,62 +117,87 @@ namespace RLUnity.Cs_Scripts
             m_LandObject= GameObject.FindGameObjectWithTag("land");
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 70;
+            
+            
             // Bölüm (episode) başlangıcı
             thrustForce = 1000f * Time.deltaTime;
             //transform.localPosition = new Vector3(0, 1f, 0);
             
+            //ROCKET  posizyon ayarlama.
+            transform.localPosition = new Vector3(
+                Random.Range(-1f, 1f),
+                0.01f,
+                Random.Range(-1f, 1f));
+            transform.eulerAngles = new Vector3(0f, 180f, 0f);
+            rb.Sleep();
             
-            astroDestroyed = false;
-            // 1) Yeni astro yüksekliği:  y = 1.0  →  4.5  (saturasyonlu)
-            float newAstroY = Mathf.Min(
-                1.0f + stepCount * astroStepFactor,   // lineer artış
-                4.50f                                 // üst sınır
-            );
-
-            // 2) X‑Z’de roketin yakınında  (±2 m)
-            float offsetX = Random.Range(0f, 0f);//-+2 idi
-            float offsetZ = Random.Range(0f, 0f);//-+2 idi
-
-            astro.localPosition = new Vector3(
-                transform.localPosition.x + offsetX,
-                newAstroY,
-                transform.localPosition.z + offsetZ
-            );
-
-            // Yeni mesafeyi kaydet
-            _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
-
-            astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = true;//tekrar gorunur yap
-            astroCollider.gameObject.GetComponent<BoxCollider>().enabled = true;//collideri ac (yuksek ihitmalle silincek)
-
-        
-            /*if (GameObject.FindWithTag("Astro") == null)
+            
+            //astroDestroyed = false;
+           //ASTRO pozisyonu
+           /* if (GameObject.FindWithTag("Astro") == null)
             {
+                Debug.Log("No astro found, created one.");
                 newAstro = Instantiate(spawnAstro, new Vector3(-0.31f, 4.44f, 0.12f), Quaternion.identity);
                 astro = newAstro.transform;
                 astroDestroyed = false;
             }
+            */
+ /*          var allAstros = GameObject.FindGameObjectsWithTag("Astro");
+           foreach (var a in allAstros)
+           {
+               Destroy(a);
+           }
         */
-            transform.eulerAngles = new Vector3(0f, 180f, 0f);
-            rb.linearVelocity = Vector3.zero;
+            // 1) Yeni astro yüksekliği:  y = 1.0  →  4.5  (saturasyonlu)
+            float newAstroY = Mathf.Min(
+                1.1f + stepCount * astroStepFactor,   // lineer artış
+                4.50f                                 // üst sınır
+            );
 
-            // İsterseniz rastgele başlangıç yapabilirsiniz (yorum satırını açın):
-        
-            transform.localPosition = new Vector3(Random.Range(-1f, 1f),
-                0.01f,
-                Random.Range(-1f, 1f));
-            transform.eulerAngles = new Vector3(0f, 180f, 0f);
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-            rb.Sleep();
+            // 2) X‑Z’de roketin yakınında  (±2 m)
+            float offsetX, offsetZ;
+            if (stepCount < 10000)
+            {
+                offsetX = Random.Range(0f, 0f);//-+2 idi
+                offsetZ = Random.Range(0f, 0f);//-+2 idi
+            }
+            else
+            {
+                offsetX = Random.Range(-1f, 1f);//-+2 idi
+                offsetZ = Random.Range(-1f, 1f);//-+2 idi
+            }
+
+
+            astro.position = new Vector3(
+                transform.position.x + offsetX,
+                newAstroY,
+                transform.position.z + offsetZ
+            );
+            Debug.Log($"stepCount: {stepCount}");
+            Debug.Log($"astroY: {astro.position.y}");
+            _astroRenderer.enabled = true;
+            _astroCollider.enabled  = true;
+            astroDestroyed          = false;
+            _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
+   //         astro = newAstro.transform;
+     //       astroDestroyed = false;
+            /*astro.localPosition = new Vector3(
+                transform.localPosition.x + offsetX,
+                newAstroY,
+                transform.localPosition.z + offsetZ
+            );
+            */
+
+            // Yeni mesafeyi kaydet
+            _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
+
+      //      astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = true;//tekrar gorunur yap
+        //    astroCollider.gameObject.GetComponent<BoxCollider>().enabled = true;//collideri ac (yuksek ihitmalle silincek)
+            
         
             //x ve z ekseninde hareketi devredisi birak
             // rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-
-        
-            // target.localPosition = new Vector3(Random.Range(-4f, 4f),
-            // Random.Range(0.5f, 4f),
-            //Random.Range(-4f, 4f));
+            
             /*
         astro.localPosition = new Vector3(Random.Range(-4f, 4f),
                                           Random.Range(0.5f, 4f),
@@ -382,11 +418,11 @@ namespace RLUnity.Cs_Scripts
             // }
 
             
-            if (Vector3.Distance(transform.position, astro.position) < 1f && !astroDestroyed)//manuel carpisma
+ /*           if (Vector3.Distance(transform.position, astro.position) < 1f && !astroDestroyed)//manuel carpisma
             {
                     OnTriggerEnter(astroCollider.GetComponent<Collider>());
             }
-            
+   */         
             
             if (m_LandObject != null)
             {
@@ -478,8 +514,10 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(10f);
                 counter += 10f;//eski hali =20, v1.2 güncellemesi
-                astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = false;
-                astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
+ //               astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = false;
+  //              astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
+                 _astroRenderer.enabled = false;
+                 _astroCollider.enabled  = false;
                 LogMessage("[Reward] Astro çarpması ödülü: 20");
                 
                 astroDestroyed = true;
