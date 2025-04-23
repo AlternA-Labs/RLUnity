@@ -19,7 +19,7 @@ metrics_log = []
 ##########################################
 # Hiperparametreler
 ##########################################
-MAX_STEPS = 9_000             # Toplam adım sayısı
+MAX_STEPS = 50_000             # Toplam adım sayısı
 BATCH_SIZE = 128                # Mini-batch boyutu
 GAMMA = 0.99                    # İndirim faktörü
 LEARNING_RATE = 5e-3            # Öğrenme hızı

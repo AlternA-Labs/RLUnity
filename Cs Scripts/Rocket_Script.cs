@@ -30,10 +30,11 @@ namespace RLUnity.Cs_Scripts
 
         [Header("Penalties / Rewards")]
         [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
-        [SerializeField] private float stepPenalty = 0.0001f;  // Zaman cezası (her adım)
+        [SerializeField] private float stepPenalty = 0.001f;  // Zaman cezası (her adım)
         [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
         [FormerlySerializedAs("AlaboraPenalty")] 
-        [SerializeField] private float alaboraPenalty = 1f;    // Ters dönünce (tam alabora) verilecek ceza
+        [SerializeField] private float alaboraPenalty = 1f;  
+
 
         [Header("Stability Reward Settings")]
         [SerializeField] private float stableVelocityThreshold = 0.1f;
@@ -47,8 +48,9 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
         [SerializeField] private float penaltyInterval = 1f;
         [Header("Astro Position")]
-        [SerializeField] private float astroBaseHeight = 1f;      // ilk bölümde yükseklik
-        [SerializeField] private float astroStepFactor = 0.0002f;// belirli bir açı için izin verilen süre
+
+        
+        [SerializeField] private float astroStepFactor = 0.0000002f;
     
         // Önceki mesafeyi tutarak yaklaşma/uzaklaşma hesabı
         private float _previousDistanceToAstro = 0f;
@@ -150,13 +152,13 @@ namespace RLUnity.Cs_Scripts
         */
             // 1) Yeni astro yüksekliği:  y = 1.0  →  4.5  (saturasyonlu)
             float newAstroY = Mathf.Min(
-                1.1f + stepCount * astroStepFactor,   // lineer artış
+                1.3f + stepCount * astroStepFactor,   // lineer artış
                 4.50f                                 // üst sınır
             );
 
             // 2) X‑Z’de roketin yakınında  (±2 m)
             float offsetX, offsetZ;
-            if (stepCount < 10000)
+            if (stepCount < 50000)
             {
                 offsetX = Random.Range(0f, 0f);//-+2 idi
                 offsetZ = Random.Range(0f, 0f);//-+2 idi
@@ -223,9 +225,9 @@ namespace RLUnity.Cs_Scripts
             // Eğer roket çok devinimsiz ve dikey duruyorsa, ek ödül
             if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
             {
-                AddReward(stableReward);
-                counter+=stableReward;
-                LogMessage($"[Reward] Stabilite ödülü: {stableReward}");
+                //AddReward(stableReward);
+                //counter+=stableReward;
+                //LogMessage($"[Reward] Stabilite ödülü: {stableReward}");
             }
             LogMessage($"[Action] Episode başladı - Pozisyon: {transform.localPosition}, Hız: {rb.linearVelocity}");
         }
@@ -280,6 +282,7 @@ namespace RLUnity.Cs_Scripts
         public override void OnActionReceived(ActionBuffers actions)
         {
             stepCount++;
+            AddReward(-stepPenalty);                 // adım başı küçük ceza
             float pitchInputX = actions.ContinuousActions[0];
             float pitchInputZ = actions.ContinuousActions[1];
             float thrustInput = actions.ContinuousActions[2];
@@ -289,26 +292,28 @@ namespace RLUnity.Cs_Scripts
             // Aksiyon sıfırdan farklıysa ufak ceza
             if (Mathf.Abs(pitchInputX) > 1e-6f)
             {
-                AddReward(-movePenalty);
-                counter-=movePenalty;
+                AddReward(-0.001f);
+                counter-=0.001f;
                 LogMessage($"[Reward] PitchX hareket cezası: {-movePenalty}");
                 
             }
             
             if (Mathf.Abs(pitchInputZ) > 1e-6f)
             {
-                AddReward(-movePenalty);
-                counter-=movePenalty;
+                AddReward(-0.001f);
+                counter-=0.001f;
                 LogMessage($"[Reward] PitchZ hareket cezası: {-movePenalty}");
                 
             }
-            // thrust için de ceza eklemek isterseniz yorumu açın:
+            
+            /*
             if (Mathf.Abs(thrustInput) > 1e-6f)
             {
                 AddReward(4 * movePenalty);
                 counter+=4 * movePenalty;
                 LogMessage($"[Reward] Thrust ödülü: {4 * movePenalty}");
             }
+            */
  
             // Roketi yönlendir
             transform.Rotate(pitchInputX * pitchSpeed * Time.deltaTime, 0f, 0f);
@@ -359,6 +364,7 @@ namespace RLUnity.Cs_Scripts
                     float rew = recoveryReward * recoveryTime;
                     AddReward(rew);
                     counter += rew;
+                    Debug.Log($"Kendnini Düzeltme ödülü:{rew}");
                     LogMessage($"[Reward] Düzeltme ödülü: {rew}");
                 }
                 // Sayaçları sıfırlayalım:
@@ -428,7 +434,7 @@ namespace RLUnity.Cs_Scripts
             {
                 // Kendi konumunuz ile "land" objesinin konumunu al ve mesafeyi hesapla
                 float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
-                if (distance < 1.5f)
+                if (distance < 1.0f)
                 {
                     Debug.Log("eşşeklik cezası");
                     AddReward(-0.05f);
@@ -440,50 +446,31 @@ namespace RLUnity.Cs_Scripts
             {
                 Debug.LogWarning("Land etiketli obje bulunamadı!");
             }
-            if (!astroDestroyed)
-            {
-                // Astro'ya yaklaşma ödülü (distance shaping)
 
-
-                // Geçici değişken ile eski mesafeyi saklayalım
-                //float previousDistanceForLog = _previousDistanceToAstro;
-
-                // Ödül hesaplaması
-                //AddReward(distanceDelta * 5 * approachRewardFactor);
-
-                // Roket eylemlerini uyguladıktan sonra:
-                float speed = rb.linearVelocity.magnitude;
-                angleFromUp = Vector3.Angle(transform.up, Vector3.up);
-
-                //bool isApproaching = distanceDelta > 0;
-                //float sign = isApproaching ? 1f : -1f;
-                //float absDelta = Mathf.Abs(distanceDelta);
-
-                //float scalingFactor = 1f;
-                //float baseReward = Mathf.Exp(absDelta * scalingFactor) - 1f;
-                //float expReward = baseReward * approachRewardFactor * sign;
-
-
-                
-                
-
-                // Eski mesafeyi güncelle
-                //_previousDistanceToAstro = currentDistance;
-            }
             /* ----- YENİ: hizalanma + ileri hız ödülü ----- */
             if (!astroDestroyed)
-            {
-                Vector3 dir      = (astro.position - transform.position).normalized;
-                float   align    = Vector3.Dot(transform.up, dir);          // 1 → hedefe bakıyor
-                float   fwdSpeed = Vector3.Dot(rb.linearVelocity, dir);     // hedefe doğru hız
-
-                AddReward(0.01f * align);
-                AddReward(0.002f * fwdSpeed);
                 
-                //LogMessage($"[*] StepCumReward: {GetCumulativeReward():F3}");
-                LogMessage($"[*] Step {stepCount}  CumReward: {GetCumulativeReward():F3}");
+            {
+                float speed = rb.linearVelocity.magnitude;
+                angleFromUp = Vector3.Angle(transform.up, Vector3.up);
+                Vector3 dir       = (astro.position - transform.position).normalized;
+                float   align     = Mathf.Max(Vector3.Dot(transform.up, dir), 0f);       // negatifleri yok say
+                float   fwdSpeed  = Mathf.Max(Vector3.Dot(rb.linearVelocity, dir), 0f);        // sadece ileri yöndeki hız
 
+                // normalize edilmiş hız /5f, aynı ağırlıkta küçük katsayılarla
+                
+                //AddReward(0.01f * align + 0.01f * (fwdSpeed / 5f));
+                
+                AddReward(0.002f * align);           // 5× küçülttük
+                AddReward(0.0004f * fwdSpeed);       // 5× küçülttük
+
+
+                LogMessage($"[Reward] TargetSeeking: align={align:F2}, speed={fwdSpeed:F2}");
             }
+            
+            LogMessage($"[*] Step {stepCount}  CumReward: {GetCumulativeReward():F3}");
+
+            
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -500,7 +487,7 @@ namespace RLUnity.Cs_Scripts
             else if (Input.GetKey(KeyCode.A)) pitchz = -1f;
         
             float thrust = 0f;
-            if (Input.GetKey(KeyCode.LeftShift)) thrust = 1f;
+            if (Input.GetKey(KeyCode.Space)) thrust = 1f;
 
             contActions[0] = pitchx;
             contActions[1] = pitchz;
@@ -518,7 +505,7 @@ namespace RLUnity.Cs_Scripts
   //              astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
                  _astroRenderer.enabled = false;
                  _astroCollider.enabled  = false;
-                LogMessage("[Reward] Astro çarpması ödülü: 20");
+                LogMessage("[Reward] Astro çarpması ödülü: 10");
                 
                 astroDestroyed = true;
                 Debug.Log("Astro Collision, rewarded");
@@ -531,7 +518,7 @@ namespace RLUnity.Cs_Scripts
             if (other.TryGetComponent<Wall>(out Wall fail))
             {
                 //eski degerler reward : -1
-                SetReward(-20f);
+                SetReward(-10f);
                 LogMessage("[Reward] Duvar çarpması cezası: -20");
                 EndEpisode();   
             }

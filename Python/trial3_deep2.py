@@ -11,14 +11,15 @@ from mlagents_envs.base_env import ActionTuple
 import matplotlib.pyplot as plt
 import pytz
 import pandas as pd
+from torch.utils.tensorboard import SummaryWriter
 
 ##########################################
 # Hiperparametreler
 ##########################################
-MAX_STEPS = 200_000             # Toplam adım sayısı (tüm ajanlar için toplu)
-BATCH_SIZE = 128                 # Mini-batch boyutu
+MAX_STEPS = 50_000             # Toplam adım sayısı (tüm ajanlar için toplu)
+BATCH_SIZE = 256                 # Mini-batch boyutu
 GAMMA = 0.99                    # İndirim faktörü
-LEARNING_RATE = 5e-3            # Öğrenme hızı
+LEARNING_RATE = 1e-4            # Öğrenme hızı
 REPLAY_BUFFER_CAPACITY = 100_000
 TAU = 0.005                     # Soft update katsayısı
 
@@ -27,6 +28,7 @@ NOISE_STD = 0.15
 
 device = torch.device("mps" )#if torch.mps.is_available() else "cpu")
 metrics_log = []
+
 ##########################################
 # Replay Buffer
 ##########################################
@@ -52,6 +54,7 @@ utc_plus_3 = pytz.timezone('Europe/Istanbul')
 date = datetime.datetime.now(utc_plus_3)
 notformatted_datetime=date.strftime("%Y-%m-%d %H:%M")
 formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
+writer = SummaryWriter(log_dir=f"runs/rocket_{formatted_datetime}")
 training_error_occurred=False
 
 def plot(metrics_log1):
@@ -76,19 +79,23 @@ def plot(metrics_log1):
                 ha='right', va='bottom', fontsize=10, color='gray')
     plt.show()
 
-##########################################
 # Actor (Policy) Ağı
 ##########################################
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
-        super(Actor, self).__init__()
+        super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(state_dim, 256),
+            nn.Linear(state_dim, 512),
+            nn.LayerNorm(512),
             nn.ReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(512, 512),
+            nn.LayerNorm(512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.LayerNorm(256),
             nn.ReLU(),
             nn.Linear(256, action_dim),
-            nn.Tanh()  # Çıktı [-1,1] aralığında
+            nn.Tanh()            # output in [-1, 1]
         )
 
     def forward(self, x):
@@ -99,11 +106,16 @@ class Actor(nn.Module):
 ##########################################
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim):
-        super(Critic, self).__init__()
+        super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(state_dim + action_dim, 256),
+            nn.Linear(state_dim + action_dim, 512),
+            nn.LayerNorm(512),
             nn.ReLU(),
-            nn.Linear(256, 256),
+            nn.Linear(512, 512),
+            nn.LayerNorm(512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.LayerNorm(256),
             nn.ReLU(),
             nn.Linear(256, 1)
         )
@@ -269,19 +281,37 @@ while global_step < MAX_STEPS:
         next_state_batch = torch.FloatTensor(np.array(batch.next_state)).to(device)
         done_batch = torch.FloatTensor(batch.done).unsqueeze(1).to(device)
 
+        # ---- Normalize observations ----
+        # Örneğin: dir.magnitude ve fwdSpeed için max 10, raycast için max 10
+        state_batch[:, 0] /= 10.0    # dir.magnitude
+        state_batch[:, 1] /= 10.0    # fwdSpeed
+        state_batch[:, -5:] /= 10.0  # son 5 raycast gözlemi
+        next_state_batch[:, 0] /= 10.0
+        next_state_batch[:, 1] /= 10.0
+        next_state_batch[:, -5:] /= 10.0
         # Critic güncelleme
         with torch.no_grad():
             next_actions = actor_target(next_state_batch)
             target_q = critic_target(next_state_batch, next_actions)
             expected_q = reward_batch + (1 - done_batch) * GAMMA * target_q
 
+        #current_q = critic(state_batch, action_batch)
+        #critic_loss = nn.MSELoss()(current_q, expected_q)
+
+        #critic_optimizer.zero_grad()
+        #critic_loss.backward()
+        #critic_optimizer.step()
+
+        # ---- Huber loss ----
         current_q = critic(state_batch, action_batch)
-        critic_loss = nn.MSELoss()(current_q, expected_q)
+        # ---- Huber loss ----
+        critic_loss = nn.SmoothL1Loss()(current_q, expected_q)
 
         critic_optimizer.zero_grad()
         critic_loss.backward()
+        # ---- Gradient clipping ----
+        torch.nn.utils.clip_grad_norm_(critic.parameters(), 1.0)
         critic_optimizer.step()
-
         # Actor güncelleme
         actor_loss = -critic(state_batch, actor(state_batch)).mean()
         actor_optimizer.zero_grad()
@@ -293,6 +323,7 @@ while global_step < MAX_STEPS:
         soft_update(critic_target, critic, TAU)
 
     # İlerleme logu
+# İlerleme logu
     if global_step % 1000 == 0:
         avg_reward = np.mean(episode_rewards[-10:])
         print(f"Step: {global_step}, Replay Buffer: {len(replay_buffer)}, Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}")
@@ -302,7 +333,15 @@ while global_step < MAX_STEPS:
             "actor_loss": actor_loss.item(),
             "critic_loss": critic_loss.item()
         })
+        writer.add_scalar("Loss/Actor", actor_loss.item(), global_step)
+        writer.add_scalar("Loss/Critic", critic_loss.item(), global_step)
+        writer.add_scalar("Reward/Average", avg_reward, global_step)
+
+        # ---- Noise decay ----
+        NOISE_STD = max(0.05, NOISE_STD * 0.995)
+        writer.add_scalar("Hyperparams/NoiseSTD", NOISE_STD, global_step)
 # Eğitim bitince ortamı kapat
+writer.close()
 env.close()
 print("Eğitim tamamlandı.")
 
