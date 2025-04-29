@@ -75,4 +75,4 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 Python/models/*
-/models
+Python/runs/*

@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
 
 namespace RLUnity.Cs_Scripts
@@ -107,6 +109,7 @@ namespace RLUnity.Cs_Scripts
 
         public override void OnEpisodeBegin()
         {
+            SetReward(0f);
             episodeIndex++;
             LogMessage("");
             LogMessage($"--------- EPISODE {episodeIndex} START ---------");   // ← ekle
@@ -151,22 +154,34 @@ namespace RLUnity.Cs_Scripts
            }
         */
             // 1) Yeni astro yüksekliği:  y = 1.0  →  4.5  (saturasyonlu)
-            float newAstroY = Mathf.Min(
-                1.3f + stepCount * astroStepFactor,   // lineer artış
-                4.50f                                 // üst sınır
-            );
+            float newAstroY;
+            if (stepCount < 6000)
+            {
+
+                newAstroY = Mathf.Min(
+                    1.3f + stepCount * astroStepFactor,   // lineer artış(eski 1.3)
+                    4.50f                                 // üst sınır
+                );
+            }
+            else
+            {
+                newAstroY = 2.5f;
+            }
 
             // 2) X‑Z’de roketin yakınında  (±2 m)
             float offsetX, offsetZ;
-            if (stepCount < 50000)
+            if (stepCount < 6000)
             {
                 offsetX = Random.Range(0f, 0f);//-+2 idi
                 offsetZ = Random.Range(0f, 0f);//-+2 idi
             }
             else
             {
-                offsetX = Random.Range(-1f, 1f);//-+2 idi
-                offsetZ = Random.Range(-1f, 1f);//-+2 idi
+                float boundary = Math.Min(((stepCount - 6000f) * astroStepFactor)/2,2f);
+                boundary  *= 0.4f;
+                Debug.Log($"Hesaplama değeri * : {boundary}");
+                offsetX = Random.Range(-boundary, boundary);//-+2 idi
+                offsetZ = Random.Range(-boundary, boundary);//-+2 idi
             }
 
 
@@ -458,7 +473,7 @@ namespace RLUnity.Cs_Scripts
                 float   fwdSpeed  = Mathf.Max(Vector3.Dot(rb.linearVelocity, dir), 0f);        // sadece ileri yöndeki hız
 
                 // normalize edilmiş hız /5f, aynı ağırlıkta küçük katsayılarla
-                
+                LogMessage($"[*] Step {stepCount}  CumReward: {GetCumulativeReward():F3} , -KONUM BAŞLANGICI-");
                 //AddReward(0.01f * align + 0.01f * (fwdSpeed / 5f));
                 
                 AddReward(0.002f * align);           // 5× küçülttük
@@ -468,7 +483,7 @@ namespace RLUnity.Cs_Scripts
                 LogMessage($"[Reward] TargetSeeking: align={align:F2}, speed={fwdSpeed:F2}");
             }
             
-            LogMessage($"[*] Step {stepCount}  CumReward: {GetCumulativeReward():F3}");
+            LogMessage($"[*] Step {stepCount}  CumReward: {GetCumulativeReward():F3} -KONUM SONU-");
 
             
         }

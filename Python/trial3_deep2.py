@@ -16,7 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 ##########################################
 # Hiperparametreler
 ##########################################
-MAX_STEPS = 50_000             # Toplam adım sayısı (tüm ajanlar için toplu)
+MAX_STEPS = 15_000             # Toplam adım sayısı (tüm ajanlar için toplu)
 BATCH_SIZE = 256                 # Mini-batch boyutu
 GAMMA = 0.99                    # İndirim faktörü
 LEARNING_RATE = 1e-4            # Öğrenme hızı
@@ -29,6 +29,9 @@ NOISE_STD = 0.15
 device = torch.device("mps" )#if torch.mps.is_available() else "cpu")
 metrics_log = []
 
+best_avg_reward = -float("inf")   # Şu ana kadarki en yüksek ortalama ödül
+DROP_TOLERANCE = 0.8
+os.makedirs("models", exist_ok=True)
 ##########################################
 # Replay Buffer
 ##########################################
@@ -326,6 +329,9 @@ while global_step < MAX_STEPS:
 # İlerleme logu
     if global_step % 1000 == 0:
         avg_reward = np.mean(episode_rewards[-10:])
+        avg_reward2 = np.mean(episode_rewards[-20:])
+
+
         print(f"Step: {global_step}, Replay Buffer: {len(replay_buffer)}, Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}")
         metrics_log.append({
             "global_step": global_step,
@@ -333,6 +339,20 @@ while global_step < MAX_STEPS:
             "actor_loss": actor_loss.item(),
             "critic_loss": critic_loss.item()
         })
+
+        if avg_reward2 > best_avg_reward:
+            best_avg_reward = avg_reward2
+
+        elif avg_reward2 < best_avg_reward * (1 - DROP_TOLERANCE):
+            torch.save(actor.state_dict(),
+                       f"models/actor_drop_step{global_step}_{formatted_datetime}.pth")
+            torch.save(critic.state_dict(),
+                       f"models/critic_drop_step{global_step}_{formatted_datetime}.pth")
+            print(f"[{global_step}] Ortalama ödül düştü ({avg_reward:.2f} < "
+                  f"{best_avg_reward:.2f}). Modeller kaydedildi.")
+            print(f"model ismi: models/actor_{global_step}_{formatted_datetime}")
+
+
         writer.add_scalar("Loss/Actor", actor_loss.item(), global_step)
         writer.add_scalar("Loss/Critic", critic_loss.item(), global_step)
         writer.add_scalar("Reward/Average", avg_reward, global_step)
@@ -348,7 +368,7 @@ print("Eğitim tamamlandı.")
 plot(metrics_log)
 
 print(formatted_datetime)
-os.makedirs("models", exist_ok=True)
+
 torch.save(actor.state_dict(), f"models/actor{formatted_datetime}.pth")
 torch.save(critic.state_dict(), f"models/critic{formatted_datetime}.pth")
 print(f"Son adımda Actor ve Critic modeli kaydedildi: actor{formatted_datetime}.pth")
