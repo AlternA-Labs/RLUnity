@@ -72,7 +72,7 @@ namespace RLUnity.Cs_Scripts
         
         private GameObject  _astroGO;
         private SkinnedMeshRenderer _astroRenderer;
-        private SphereCollider _astroCollider;
+        private BoxCollider _astroCollider;
 
         // Başlangıçta log dosyasını ayarla
         private void LogMessage(string message)
@@ -92,6 +92,16 @@ namespace RLUnity.Cs_Scripts
         }
         private void Awake()
         {
+            
+            
+            BoxCollider   rocketCol = GetComponent<BoxCollider>();          // gövde
+            SphereCollider sensorCol = GetComponentInChildren<SphereCollider>(); // kafadaki
+            if (rocketCol != null && sensorCol != null)
+            {
+                Physics.IgnoreCollision(rocketCol, sensorCol, true); 
+            }//titereme sorunu olmasın diye sonsor ve roketin rigidbodylerindaki çakışmayı engelledik.
+            
+            
             Debug.Log("Log dosyası yolu: " + logFilePath);
             // Log dosyasının yolu: PersistentDataPath kullanarak platformdan bağımsız bir yol
             logFilePath = Path.Combine(Application.persistentDataPath, "RocketAgent_Log1.txt");
@@ -103,7 +113,7 @@ namespace RLUnity.Cs_Scripts
             _astroGO.tag = "Astro";
             astro   = _astroGO.transform;
             _astroRenderer = _astroGO.GetComponentInChildren<SkinnedMeshRenderer>();
-            _astroCollider = _astroGO.GetComponentInChildren<SphereCollider>();
+            _astroCollider = _astroGO.GetComponentInChildren<BoxCollider>();
             astroDestroyed = false;
         }
 
@@ -508,11 +518,28 @@ namespace RLUnity.Cs_Scripts
             contActions[1] = pitchz;
             contActions[2] = thrust;
         }
+        
+        public void OnAstroHit()
+        {
+            if (astroDestroyed) return;
+
+            AddReward(10f);
+            counter += 10f;//eski hali =20, v1.2 güncellemesi
+            //astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = false;
+            // astroCollider.gameObject.GetComponent<BoxCollider>().enabled = false;
+            _astroRenderer.enabled = false;
+            _astroCollider.enabled  = false;
+            LogMessage("[Reward] Astro çarpması ödülü: 10");
+                
+            astroDestroyed = true;
+            Debug.Log("Astro Collision, rewarded");
+            EndEpisode();
+        }
 
         private void OnTriggerEnter(Collider other)
         {
-            // AstroScript'e değerse 
-            if (other.TryGetComponent<AstroScript>(out AstroScript half))
+
+            /*if (other.TryGetComponent<AstroScript>(out AstroScript half))
             {
                 AddReward(10f);
                 counter += 10f;//eski hali =20, v1.2 güncellemesi
@@ -527,7 +554,7 @@ namespace RLUnity.Cs_Scripts
                 EndEpisode();//v1.2 eklemesi
             }
             
-            
+            */
         
             // Duvara çarparsa -1 ve bölüm sonu
             if (other.TryGetComponent<Wall>(out Wall fail))
