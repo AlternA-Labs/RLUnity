@@ -7,18 +7,14 @@ namespace RLUnity.Cs_Scripts
     public class AstroSensorCollision : MonoBehaviour
     {
         public Transform rocketRoot;   // Inspector’dan RocketAgent transformunu atayın
-        public Vector3 localOffset = new Vector3(0f, 1.5f, 0f);
+        public Vector3 localOffset = new Vector3(0f, 0.8f, 0f);
 
         void Update()          // her karede roketten sonra çalışır
         {
             transform.position = rocketRoot.TransformPoint(localOffset);
             transform.rotation = rocketRoot.rotation;   // istersen bakış yönü de eşlensin
         }
-        private void Start()
-        {
-            Debug.Log("oluduuuuu");
-        }
-
+        
         public RocketAgent agent;   // Inspector’dan sürükle-bırak
         void OnCollisionEnter(Collision col)
         {
@@ -29,9 +25,6 @@ namespace RLUnity.Cs_Scripts
                 agent.OnAstroHit();
             }
         }
-        void OnCollisionExit(Collision other)
-        {
-            print("No longer in contact with " + other.transform.name);
-        }
+
     }
 }

@@ -18,11 +18,9 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private Transform landingSite;
         [SerializeField] private Rigidbody rb;
         [SerializeField] private GameObject spawnAstro;
- //       [SerializeField] private GameObject newAstro;
- //       [SerializeField] private GameObject astroRenderer;
-   //     [SerializeField] private GameObject astroCollider;
         [FormerlySerializedAs("AstroDestroyed")] 
         [SerializeField] private bool astroDestroyed;
+        [SerializeField] private int freezeSteps = 4000;
     
     
         [Header("Movement Settings")]
@@ -31,6 +29,8 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
+        [SerializeField] private Transform sensorRoot;   // Inspector’dan SensorRoot'u sürükle
+
         [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
         [SerializeField] private float stepPenalty = 0.001f;  // Zaman cezası (her adım)
         [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
@@ -68,7 +68,7 @@ namespace RLUnity.Cs_Scripts
         // Loglama için yeni eklenen alanlar
         private string logFilePath;
         private StreamWriter logWriter;
-        private bool isLogWriterClosed = false;
+        private bool isLogWriterClosed = true;//LOG TUTSUN MU?
         
         private GameObject  _astroGO;
         private SkinnedMeshRenderer _astroRenderer;
@@ -79,7 +79,7 @@ namespace RLUnity.Cs_Scripts
         {
             try
             {
-                if (logWriter != null && !isLogWriterClosed)
+                if (logWriter != null && !isLogWriterClosed )
                 {
                     logWriter.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}");
                     logWriter.Flush(); // Her yazmada dosyaya kaydedilmesini sağlar
@@ -93,9 +93,10 @@ namespace RLUnity.Cs_Scripts
         private void Awake()
         {
             
+            if (sensorRoot == null) sensorRoot = transform;
             
             BoxCollider   rocketCol = GetComponent<BoxCollider>();          // gövde
-            SphereCollider sensorCol = GetComponentInChildren<SphereCollider>(); // kafadaki
+            BoxCollider sensorCol = GetComponentInChildren<BoxCollider>(); // kafadaki
             if (rocketCol != null && sensorCol != null)
             {
                 Physics.IgnoreCollision(rocketCol, sensorCol, true); 
@@ -104,6 +105,7 @@ namespace RLUnity.Cs_Scripts
             
             Debug.Log("Log dosyası yolu: " + logFilePath);
             // Log dosyasının yolu: PersistentDataPath kullanarak platformdan bağımsız bir yol
+            
             logFilePath = Path.Combine(Application.persistentDataPath, "RocketAgent_Log1.txt");
             logWriter = new StreamWriter(logFilePath, true); // true: dosyaya ekleme yapar
             isLogWriterClosed = false;
@@ -124,11 +126,7 @@ namespace RLUnity.Cs_Scripts
             LogMessage("");
             LogMessage($"--------- EPISODE {episodeIndex} START ---------");   // ← ekle
             counter = 0f;
-            //sürtünme edkledim !!!!!!
-            rb.linearDamping = 1.5f;
-            rb.angularDamping = 1f;
-            //sonradan silebiliriz 
-
+            
             m_LandObject= GameObject.FindGameObjectWithTag("land");
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 70;
@@ -145,24 +143,7 @@ namespace RLUnity.Cs_Scripts
                 Random.Range(-1f, 1f));
             transform.eulerAngles = new Vector3(0f, 180f, 0f);
             rb.Sleep();
-            
-            
-            //astroDestroyed = false;
-           //ASTRO pozisyonu
-           /* if (GameObject.FindWithTag("Astro") == null)
-            {
-                Debug.Log("No astro found, created one.");
-                newAstro = Instantiate(spawnAstro, new Vector3(-0.31f, 4.44f, 0.12f), Quaternion.identity);
-                astro = newAstro.transform;
-                astroDestroyed = false;
-            }
-            */
- /*          var allAstros = GameObject.FindGameObjectsWithTag("Astro");
-           foreach (var a in allAstros)
-           {
-               Destroy(a);
-           }
-        */
+
             // 1) Yeni astro yüksekliği:  y = 1.0  →  4.5  (saturasyonlu)
             float newAstroY;
             if (stepCount < 6000)
@@ -178,7 +159,7 @@ namespace RLUnity.Cs_Scripts
                 newAstroY = 2.5f;
             }
 
-            // 2) X‑Z’de roketin yakınında  (±2 m)
+            // 2) X‑Z’de roketin yakınında
             float offsetX, offsetZ;
             if (stepCount < 6000)
             {
@@ -200,8 +181,8 @@ namespace RLUnity.Cs_Scripts
                 newAstroY,
                 transform.position.z + offsetZ
             );
-            //Debug.Log($"stepCount: {stepCount}");
-            //Debug.Log($"astroY: {astro.position.y}");
+            Debug.Log($"stepCount: {stepCount}");
+            Debug.Log($"astroY: {astro.position.y}");
             _astroRenderer.enabled = true;
             _astroCollider.enabled  = true;
             astroDestroyed          = false;
@@ -259,6 +240,7 @@ namespace RLUnity.Cs_Scripts
 
         public override void CollectObservations(VectorSensor sensor)
         {
+            /*
             // 1) Astro’ya birim yön vektörü (3 float)
             Vector3 dir = (!astroDestroyed 
                               ? astro.position 
@@ -298,19 +280,86 @@ namespace RLUnity.Cs_Scripts
             float upDist = Physics.Raycast(transform.position, transform.up, out hit, 15f) ? hit.distance : 15f;
             sensor.AddObservation(upDist);
             //Debug.Log($"forward: {forwardDist}, left: {leftDist}, right: {rightDist}, back: {backDist}, up: {upDist}");
+*/
+            // 1) Hedef vektörü
+            Vector3 dir = (!astroDestroyed ? astro.position : landingSite.position) 
+                          - sensorRoot.position;
+            sensor.AddObservation(dir.normalized);
 
+            // 2) Mesafe
+            sensor.AddObservation(dir.magnitude);
+
+            // 3) İleri hız bileşeni
+            float fwdSpeed = Vector3.Dot(rb.linearVelocity, dir.normalized);
+            sensor.AddObservation(fwdSpeed);
+
+            // 4) Up vektörü
+            sensor.AddObservation(sensorRoot.up);
+
+            // 5) Ham hız
+            sensor.AddObservation(rb.linearVelocity);
+
+            // 6) Raycast’ler – sensorRoot’tan at
+            RaycastHit hit;
+            float forwardDist = Physics.Raycast(sensorRoot.position, sensorRoot.forward, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(forwardDist);
+            
+            float leftDist = Physics.Raycast(sensorRoot.position, -transform.right, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(leftDist);
+
+            float rightDist = Physics.Raycast(sensorRoot.position, transform.right, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(rightDist);
+
+            float backDist = Physics.Raycast(sensorRoot.position, -transform.forward, out hit, 10f) ? hit.distance : 10f;
+            sensor.AddObservation(backDist);
+            // UP (yukarı)
+            float upDist = Physics.Raycast(sensorRoot.position, transform.up, out hit, 15f) ? hit.distance : 15f;
+            sensor.AddObservation(upDist);
         }
 
 
 
         // ReSharper disable Unity.PerformanceAnalysis
         public override void OnActionReceived(ActionBuffers actions)
-        {
+        {//  ─────────────────────────────────────────────────────────────
+//  Curriculum:  X‑Z pozisyonlarını ilk N adım dondur
+//  ─────────────────────────────────────────────────────────────
             stepCount++;
-            AddReward(-stepPenalty);                 // adım başı küçük ceza
+
+            bool freezePhase = stepCount < freezeSteps;
+
+            if (freezePhase)
+            {
+                // 1) Pozisyon ve rotasyonu kilitle
+                rb.constraints = RigidbodyConstraints.FreezePositionX |
+                                 RigidbodyConstraints.FreezePositionZ |
+                                 RigidbodyConstraints.FreezeRotation;
+
+                // 2) Yatay hız/rotasyonu sıfırla (kayma olmasın)
+                rb.linearVelocity  = new Vector3(0f, rb.linearVelocity.y, 0f);
+                rb.angularVelocity = Vector3.zero;
+
+                // 3) Sadece Y eksenine itki uygula → ajan “dikey itki”yi öğreniyor
+                float thrustOnly = actions.ContinuousActions[2];
+                rb.AddForce(thrustOnly * thrustForce * transform.up);
+
+                return;                     // Pitch‑Yaw henüz işlenmedi
+            }
+            else if (rb.constraints != RigidbodyConstraints.None)
+            {
+                // Freeze bitti, kısıtlamayı tek seferde kaldır
+                rb.constraints = RigidbodyConstraints.None;
+            }
+
+//  ─────────────────────────────────────────────────────────────
+//  Normal kontrol (X‑Z serbest)
+//  ─────────────────────────────────────────────────────────────
+            AddReward(-stepPenalty);           // her adım cezası
+
             float pitchInputX = actions.ContinuousActions[0];
             float pitchInputZ = actions.ContinuousActions[1];
             float thrustInput = actions.ContinuousActions[2];
+
             //pitch için abs yapıp yapılan pitch *0.1 ceza olsun. unutma.
             LogMessage($"[Action] PitchX: {pitchInputX}, PitchZ: {pitchInputZ}, Thrust: {thrustInput}");
 
@@ -374,6 +423,13 @@ namespace RLUnity.Cs_Scripts
                         counter -=alaboraPenalty ;
                         LogMessage($"[Reward] Aşırı eğim cezası: {-alaboraPenalty}");
                     }
+
+                    if (angleFromUp >= 89f)
+                    {
+                        AddReward(-10f);
+                        Debug.Log("Taklaya Geldik");
+                        EndEpisode();
+                    }
         
                     // Sonraki ceza periyodunu ayarla:
                     _nextPenaltyThreshold += penaltyInterval;
@@ -387,8 +443,8 @@ namespace RLUnity.Cs_Scripts
                     // Eğer tilt durumu en az penaltyInterval sürdüyse, fazladan kalan süre için ödül ver
                     float recoveryTime = _tiltTimeAccumulator - penaltyInterval;
                     float rew = recoveryReward * recoveryTime;
-                    AddReward(rew);
-                    counter += rew;
+                    //AddReward(rew);
+                    //counter += rew;
                     Debug.Log($"Kendnini Düzeltme ödülü:{rew}");
                     LogMessage($"[Reward] Düzeltme ödülü: {rew}");
                 }
@@ -571,8 +627,10 @@ namespace RLUnity.Cs_Scripts
        
       
         // landzone'a belirlenen şartlarla inerse +0.5 ve bölüm sonu
-         void OnCollisionEnter(Collision col)//triggerda bozuk calistigi icin OnCollisiona gecis yapildi
+        
+        void OnCollisionEnter(Collision col)//triggerda bozuk calistigi icin OnCollisiona gecis yapildi
     {
+        /*
         if(col.gameObject.CompareTag("land")){
             Debug.Log("touchdown");
             float rotx = transform.localRotation.eulerAngles.x;
@@ -592,7 +650,7 @@ namespace RLUnity.Cs_Scripts
             }
         }
 
-    }
+    */}
 
     void Update()
     {
