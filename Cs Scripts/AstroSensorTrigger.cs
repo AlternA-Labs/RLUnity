@@ -1,11 +1,25 @@
+using System;
 using UnityEngine;
-
+using Debug = UnityEngine.Debug;
 namespace RLUnity.Cs_Scripts
 {
+    
     public class AstroSensorCollision : MonoBehaviour
     {
-        public RocketAgent agent;   // Inspector’dan sürükle-bırak
+        public Transform rocketRoot;   // Inspector’dan RocketAgent transformunu atayın
+        public Vector3 localOffset = new Vector3(0f, 1.5f, 0f);
 
+        void Update()          // her karede roketten sonra çalışır
+        {
+            transform.position = rocketRoot.TransformPoint(localOffset);
+            transform.rotation = rocketRoot.rotation;   // istersen bakış yönü de eşlensin
+        }
+        private void Start()
+        {
+            Debug.Log("oluduuuuu");
+        }
+
+        public RocketAgent agent;   // Inspector’dan sürükle-bırak
         void OnCollisionEnter(Collision col)
         {
             // Yüzeye “Astro” tag’i verdiysen doğrudan:
@@ -14,6 +28,10 @@ namespace RLUnity.Cs_Scripts
                 Debug.Log("Astro’yu çarptık!");
                 agent.OnAstroHit();
             }
+        }
+        void OnCollisionExit(Collision other)
+        {
+            print("No longer in contact with " + other.transform.name);
         }
     }
 }

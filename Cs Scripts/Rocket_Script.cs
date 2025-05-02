@@ -200,8 +200,8 @@ namespace RLUnity.Cs_Scripts
                 newAstroY,
                 transform.position.z + offsetZ
             );
-            Debug.Log($"stepCount: {stepCount}");
-            Debug.Log($"astroY: {astro.position.y}");
+            //Debug.Log($"stepCount: {stepCount}");
+            //Debug.Log($"astroY: {astro.position.y}");
             _astroRenderer.enabled = true;
             _astroCollider.enabled  = true;
             astroDestroyed          = false;
@@ -265,7 +265,7 @@ namespace RLUnity.Cs_Scripts
                               : landingSite.position)
                           - transform.position;
             sensor.AddObservation(dir.normalized);
-            Debug.Log($"Astro position: {dir.normalized}");
+           // Debug.Log($"Astro position: {dir.normalized}");
 
             // 2) Ham mesafe (1 float)
             sensor.AddObservation(dir.magnitude);
@@ -461,7 +461,7 @@ namespace RLUnity.Cs_Scripts
                 float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
                 if (distance < 1.0f)
                 {
-                    Debug.Log("eşşeklik cezası");
+                    //Debug.Log("eşşeklik cezası");
                     AddReward(-0.05f);
                     counter -= 0.05f;
                     LogMessage("[Reward] Landing alanına yakınlık cezası: -0.05");
