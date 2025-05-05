@@ -20,7 +20,15 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private GameObject spawnAstro;
         [FormerlySerializedAs("AstroDestroyed")] 
         [SerializeField] private bool astroDestroyed;
-        [SerializeField] private int freezeSteps = 4000;
+
+       [Header("Step Settings")]
+       
+       [SerializeField] private int phase1Steps = 4000;      // Evre‑1: salt Y kontrol
+       [SerializeField] private int phase2Steps = 14000;      // Evre‑2 bitişi (kümülatif)
+       [SerializeField] private float riseSpeedPhase1 = 0.002f; // Y ekseni artış (hızlı)
+       [SerializeField] private float riseSpeedPhase2 = 0.002f; // Y ekseni artış (yavaş)
+       [SerializeField] private float maxRiseY = 4.5f; 
+       [SerializeField] private int maxEpisodeSteps = 500;
     
     
         [Header("Movement Settings")]
@@ -29,6 +37,7 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
+        [SerializeField] private float pitchPenalty = 0.005f;
         [SerializeField] private Transform sensorRoot;   // Inspector’dan SensorRoot'u sürükle
 
         [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
@@ -61,7 +70,15 @@ namespace RLUnity.Cs_Scripts
         private GameObject m_LandObject;
         private float counter = 0f;
         private int episodeIndex = 0;
+        private int episodeStep = 0; 
         private long stepCount = 0;
+
+// Yardımcı:
+        private enum Phase { One, Two, Three }
+        private Phase CurrentPhase =>
+            stepCount <  phase1Steps            ? Phase.One  :
+            stepCount <  phase2Steps            ? Phase.Two  :
+            Phase.Three;
 
 
         //ReSharper disable Unity.PerformanceAnalysis
@@ -73,6 +90,7 @@ namespace RLUnity.Cs_Scripts
         private GameObject  _astroGO;
         private SkinnedMeshRenderer _astroRenderer;
         private BoxCollider _astroCollider;
+        private float carpan = 0.1f ;
 
         // Başlangıçta log dosyasını ayarla
         private void LogMessage(string message)
@@ -118,13 +136,47 @@ namespace RLUnity.Cs_Scripts
             _astroCollider = _astroGO.GetComponentInChildren<BoxCollider>();
             astroDestroyed = false;
         }
+        
+// Kodu OnEpisodeBegin sonunda çağır
+        private void PlaceAstro()
+        {
+            if (CurrentPhase == Phase.One)
+            {
+                Debug.Log("Phase 1");
+                // Başlangıç (0,0,0)’a yakın + hızlı Y yükselişi
+                float y = Mathf.Min(1.1f + stepCount * riseSpeedPhase1, maxRiseY);
+                astro.position = new Vector3(0f, y, 0f);
+            }
+            else if (CurrentPhase == Phase.Two)
+            {
+                Debug.Log("Phase 2");
+                // (0,0,0)’a geri dön, yavaş Y yükselişi
+                float y = Mathf.Min(1.1f + (stepCount - phase1Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                astro.position = new Vector3(0f, y, 0f);
+            }
+            else  // Phase.Three
+            {
+                Debug.Log("Phase 3");
+                float y = Mathf.Min(1.1f + (stepCount - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                // Eski mantığı aynen kullan – X‑Z’de uzaklaş + Y’de hafif yüksel
+                float boundary = Math.Min(((stepCount - phase2Steps) * astroStepFactor)/2,2f);
+                float offsetX  = Random.Range(-boundary, boundary);
+                float offsetZ  = Random.Range(-boundary, boundary);
+
+
+                astro.position = new Vector3(transform.position.x + offsetX, y,
+                    transform.position.z + offsetZ);
+            }
+        }
 
         public override void OnEpisodeBegin()
-        {
+        {   
+            
+            episodeStep = 0;  
             SetReward(0f);
             episodeIndex++;
             LogMessage("");
-            LogMessage($"--------- EPISODE {episodeIndex} START ---------");   // ← ekle
+            LogMessage($"--------- EPISODE {episodeIndex} START ---------");   
             counter = 0f;
             
             m_LandObject= GameObject.FindGameObjectWithTag("land");
@@ -134,24 +186,28 @@ namespace RLUnity.Cs_Scripts
             
             // Bölüm (episode) başlangıcı
             thrustForce = 1000f * Time.deltaTime;
-            //transform.localPosition = new Vector3(0, 1f, 0);
             
             //ROCKET  posizyon ayarlama.
-            transform.localPosition = new Vector3(
+            /*transform.localPosition = new Vector3(
                 Random.Range(-1f, 1f),
                 0.01f,
                 Random.Range(-1f, 1f));
+            */
+            
+            
+            transform.localPosition= new Vector3(0f,0.01f,0f);
+            
             transform.eulerAngles = new Vector3(0f, 180f, 0f);
             rb.Sleep();
-
-            // 1) Yeni astro yüksekliği:  y = 1.0  →  4.5  (saturasyonlu)
+            
+            /*
             float newAstroY;
             if (stepCount < 6000)
             {
 
                 newAstroY = Mathf.Min(
-                    1.3f + stepCount * astroStepFactor,   // lineer artış(eski 1.3)
-                    4.50f                                 // üst sınır
+                    1.3f + stepCount * astroStepFactor,   
+                    4.50f                              
                 );
             }
             else
@@ -181,61 +237,26 @@ namespace RLUnity.Cs_Scripts
                 newAstroY,
                 transform.position.z + offsetZ
             );
+            */
             Debug.Log($"stepCount: {stepCount}");
             Debug.Log($"astroY: {astro.position.y}");
             _astroRenderer.enabled = true;
             _astroCollider.enabled  = true;
             astroDestroyed          = false;
             _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
-   //         astro = newAstro.transform;
-     //       astroDestroyed = false;
-            /*astro.localPosition = new Vector3(
-                transform.localPosition.x + offsetX,
-                newAstroY,
-                transform.localPosition.z + offsetZ
-            );
-            */
 
             // Yeni mesafeyi kaydet
             _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
 
-      //      astroRenderer.gameObject.GetComponent<SkinnedMeshRenderer>().enabled = true;//tekrar gorunur yap
-        //    astroCollider.gameObject.GetComponent<BoxCollider>().enabled = true;//collideri ac (yuksek ihitmalle silincek)
-            
-        
-            //x ve z ekseninde hareketi devredisi birak
-            // rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-            
-            /*
-        astro.localPosition = new Vector3(Random.Range(-4f, 4f),
-                                          Random.Range(0.5f, 4f),
-                                          Random.Range(-4f, 4f));
-        */
-
             // Astro mesafesini kaydet
             if (!astroDestroyed)
             {
-                //_previousDistanceToAstro = Vector3.Distance(transform.localPosition, astro.localPosition);
                 _previousDistanceToAstro = Vector3.Distance(transform.position, astro.position);
 
             }
-        
-            // =========================
-            // STABILITY REWARD KODU
-            // =========================
-            // 1) Yatay hız çok düşük mü?
-            float speed = rb.linearVelocity.magnitude;
-            // 2) Dünya yukarısıyla açı
-            float angleFromUp = Vector3.Angle(transform.up, Vector3.up);
-
-            // Eğer roket çok devinimsiz ve dikey duruyorsa, ek ödül
-            if (speed < stableVelocityThreshold && angleFromUp < stableAngleThreshold)
-            {
-                //AddReward(stableReward);
-                //counter+=stableReward;
-                //LogMessage($"[Reward] Stabilite ödülü: {stableReward}");
-            }
+            
             LogMessage($"[Action] Episode başladı - Pozisyon: {transform.localPosition}, Hız: {rb.linearVelocity}");
+            PlaceAstro();
         }
 
         public override void CollectObservations(VectorSensor sensor)
@@ -321,12 +342,20 @@ namespace RLUnity.Cs_Scripts
 
         // ReSharper disable Unity.PerformanceAnalysis
         public override void OnActionReceived(ActionBuffers actions)
-        {//  ─────────────────────────────────────────────────────────────
-//  Curriculum:  X‑Z pozisyonlarını ilk N adım dondur
-//  ─────────────────────────────────────────────────────────────
+        
+        {
+            AddReward(-stepPenalty); 
+            
             stepCount++;
-
-            bool freezePhase = stepCount < freezeSteps;
+            episodeStep++;
+            if (episodeStep > maxEpisodeSteps)
+            {
+                AddReward(-10f);   // ceza
+                EndEpisode();
+                return;            // kalan kodu çalıştırma
+            }
+            
+            bool freezePhase = stepCount < phase1Steps;
 
             if (freezePhase)
             {
@@ -354,7 +383,7 @@ namespace RLUnity.Cs_Scripts
 //  ─────────────────────────────────────────────────────────────
 //  Normal kontrol (X‑Z serbest)
 //  ─────────────────────────────────────────────────────────────
-            AddReward(-stepPenalty);           // her adım cezası
+
 
             float pitchInputX = actions.ContinuousActions[0];
             float pitchInputZ = actions.ContinuousActions[1];
@@ -366,7 +395,7 @@ namespace RLUnity.Cs_Scripts
             // Aksiyon sıfırdan farklıysa ufak ceza
             if (Mathf.Abs(pitchInputX) > 1e-6f)
             {
-                AddReward(-0.001f);
+                AddReward(-pitchPenalty);
                 counter-=0.001f;
                 LogMessage($"[Reward] PitchX hareket cezası: {-movePenalty}");
                 
@@ -374,7 +403,7 @@ namespace RLUnity.Cs_Scripts
             
             if (Mathf.Abs(pitchInputZ) > 1e-6f)
             {
-                AddReward(-0.001f);
+                AddReward(-pitchPenalty);
                 counter-=0.001f;
                 LogMessage($"[Reward] PitchZ hareket cezası: {-movePenalty}");
                 

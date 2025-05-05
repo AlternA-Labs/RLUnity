@@ -11,15 +11,15 @@ from mlagents_envs.base_env import ActionTuple
 import matplotlib.pyplot as plt
 import pytz
 import pandas as pd
-from torch.utils.tensorboard import SummaryWriter
+
 
 ##########################################
 # Hiperparametreler
 ##########################################
-MAX_STEPS = 15_000             # Toplam adım sayısı (tüm ajanlar için toplu)
+MAX_STEPS = 18_000             # Toplam adım sayısı (tüm ajanlar için toplu)
 BATCH_SIZE = 256                 # Mini-batch boyutu
 GAMMA = 0.99                    # İndirim faktörü
-LEARNING_RATE = 1e-4            # Öğrenme hızı
+LEARNING_RATE = 3e-5            # Öğrenme hızı
 REPLAY_BUFFER_CAPACITY = 100_000
 TAU = 0.005                     # Soft update katsayısı
 
@@ -57,7 +57,7 @@ utc_plus_3 = pytz.timezone('Europe/Istanbul')
 date = datetime.datetime.now(utc_plus_3)
 notformatted_datetime=date.strftime("%Y-%m-%d %H:%M")
 formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
-writer = SummaryWriter(log_dir=f"runs/rocket_{formatted_datetime}")
+
 training_error_occurred=False
 
 def plot(metrics_log1):
@@ -353,15 +353,11 @@ while global_step < MAX_STEPS:
             print(f"model ismi: models/actor_{global_step}_{formatted_datetime}")
 
 
-        writer.add_scalar("Loss/Actor", actor_loss.item(), global_step)
-        writer.add_scalar("Loss/Critic", critic_loss.item(), global_step)
-        writer.add_scalar("Reward/Average", avg_reward, global_step)
-
         # ---- Noise decay ----
         NOISE_STD = max(0.05, NOISE_STD * 0.995)
-        writer.add_scalar("Hyperparams/NoiseSTD", NOISE_STD, global_step)
+
 # Eğitim bitince ortamı kapat
-writer.close()
+
 env.close()
 print("Eğitim tamamlandı.")
 
