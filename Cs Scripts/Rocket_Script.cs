@@ -149,34 +149,56 @@ namespace RLUnity.Cs_Scripts
         {
             var envParams = Academy.Instance.EnvironmentParameters;
             float flag = envParams.GetWithDefault("is_training", 1f);
-            isTraining = flag > 0.5f;
+            isTraining = flag > 0.5f;//bu false olunca test
             Debug.Log(isTraining);
         }
         
 // Kodu OnEpisodeBegin sonunda çağır
         private void PlaceAstro()
         {
-            if (CurrentPhase == Phase.One)
+            if (CurrentPhase == Phase.One && isTraining)
             {
                 // Başlangıç (0,0,0)’a yakın + hızlı Y yükselişi
                 float y = Mathf.Min(1.17f + episodeIndex * riseSpeedPhase1, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
-            else if (CurrentPhase == Phase.Two)
+            else if (CurrentPhase == Phase.Two&& isTraining)
             {
                 // (0,0,0)’a geri dön, yavaş Y yükselişi
                 float y = Mathf.Min(1.17f + (episodeIndex - phase1Steps) * riseSpeedPhase2, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
-            else if (CurrentPhase == Phase.Three) // Phase.Three
+            else if (CurrentPhase == Phase.Three && isTraining) // Phase.Three
             {
                 float y = Mathf.Min(1.17f + (episodeIndex - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float height    = y - 0.877f;
+                //30 derecelik hareket dışında yapmasın diye yeni mekanizma
+                float maxRadius = Mathf.Tan(30f * Mathf.Deg2Rad) * height;
+                Vector2 rnd     = Random.insideUnitCircle * maxRadius;
+                float offsetX   = rnd.x;
+                float offsetZ   = rnd.y;
+                /*
+                float boundary2 = (y - 0.877f)/2f;
                 // Eski mantığı aynen kullan – X‑Z’de uzaklaş + Y’de hafif yüksel
-                float boundary = Math.Min(((episodeIndex - phase2Steps) * astroStepFactor)/2,2f);
+                float boundary = Math.Min(((episodeIndex - phase2Steps) * astroStepFactor)/2,boundary2);
                 float offsetX  = Random.Range(-boundary, boundary);
                 float offsetZ  = Random.Range(-boundary, boundary);
+*/
 
-
+                astro.position = new Vector3(transform.position.x + offsetX, y,
+                    transform.position.z + offsetZ);
+            }
+            else if (!isTraining)
+            {
+                Debug.Log("TEST");
+                float y = Random.Range(1.30f, 3.5f);
+                float height    = y - 0.877f;
+                //30 derecelik hareket dışında yapmasın diye yeni mekanizma
+                float maxRadius = Mathf.Tan(30f * Mathf.Deg2Rad) * height;
+                Vector2 rnd     = Random.insideUnitCircle * maxRadius;
+                float offsetX   = rnd.x;
+                float offsetZ   = rnd.y;
+                
                 astro.position = new Vector3(transform.position.x + offsetX, y,
                     transform.position.z + offsetZ);
             }
@@ -347,7 +369,7 @@ namespace RLUnity.Cs_Scripts
             
             bool freezePhase = CurrentPhase == Phase.One;
 
-            if (freezePhase)
+            if (freezePhase && isTraining)
             {
                 // 1) Pozisyon ve rotasyonu kilitle
                 rb.constraints = RigidbodyConstraints.FreezePositionX |
