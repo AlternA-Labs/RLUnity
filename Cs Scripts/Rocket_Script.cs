@@ -25,7 +25,7 @@ namespace RLUnity.Cs_Scripts
        
        [SerializeField] private int phase1Steps = 4000;      // Evre‑1: salt Y kontrol
        [SerializeField] private int phase2Steps = 14000;      // Evre‑2 bitişi (kümülatif)
-       [SerializeField] private float riseSpeedPhase1 = 0.002f; // Y ekseni artış (hızlı)
+       [SerializeField] private float riseSpeedPhase1 = 0.001f; // Y ekseni artış (hızlı)
        [SerializeField] private float riseSpeedPhase2 = 0.002f; // Y ekseni artış (yavaş)
        [SerializeField] private float maxRiseY = 4.5f; 
        [SerializeField] private int maxEpisodeSteps = 500;
@@ -37,11 +37,11 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
-        [SerializeField] private float pitchPenalty = 0.005f;
+        [SerializeField] private float pitchPenalty = 0.01f;
         [SerializeField] private Transform sensorRoot;   // Inspector’dan SensorRoot'u sürükle
 
         [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
-        [SerializeField] private float stepPenalty = 0.001f;  // Zaman cezası (her adım)
+        [SerializeField] private float stepPenalty = 0.005f;  // Zaman cezası (her adım)
         [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
         [FormerlySerializedAs("AlaboraPenalty")] 
         [SerializeField] private float alaboraPenalty = 1f;  
@@ -90,7 +90,7 @@ namespace RLUnity.Cs_Scripts
         private GameObject  _astroGO;
         private SkinnedMeshRenderer _astroRenderer;
         private BoxCollider _astroCollider;
-        private float carpan = 0.1f ;
+        private float carpan = 0.06f ;
 
         // Başlangıçta log dosyasını ayarla
         private void LogMessage(string message)
@@ -144,20 +144,20 @@ namespace RLUnity.Cs_Scripts
             {
                 Debug.Log("Phase 1");
                 // Başlangıç (0,0,0)’a yakın + hızlı Y yükselişi
-                float y = Mathf.Min(1.1f + stepCount * riseSpeedPhase1, maxRiseY);
+                float y = Mathf.Min(1.17f + stepCount * riseSpeedPhase1, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
             else if (CurrentPhase == Phase.Two)
             {
                 Debug.Log("Phase 2");
                 // (0,0,0)’a geri dön, yavaş Y yükselişi
-                float y = Mathf.Min(1.1f + (stepCount - phase1Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float y = Mathf.Min(1.17f + (stepCount - phase1Steps) * carpan * riseSpeedPhase2, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
             else  // Phase.Three
             {
                 Debug.Log("Phase 3");
-                float y = Mathf.Min(1.1f + (stepCount - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float y = Mathf.Min(1.17f + (stepCount - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
                 // Eski mantığı aynen kullan – X‑Z’de uzaklaş + Y’de hafif yüksel
                 float boundary = Math.Min(((stepCount - phase2Steps) * astroStepFactor)/2,2f);
                 float offsetX  = Random.Range(-boundary, boundary);
