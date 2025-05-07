@@ -41,10 +41,10 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
-        [SerializeField] private float pitchPenalty = 0.01f;
+        [SerializeField] private float pitchPenalty = 0.05f;
         [SerializeField] private Transform sensorRoot;   // Inspector’dan SensorRoot'u sürükle
 
-        [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
+        //[SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
         [SerializeField] private float stepPenalty = 0.005f;  // Zaman cezası (her adım)
         [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
         [FormerlySerializedAs("AlaboraPenalty")] 
@@ -362,6 +362,7 @@ namespace RLUnity.Cs_Scripts
             episodeStep++;
             if (episodeStep > maxEpisodeSteps)
             {
+                Debug.Log($"[Episode: {episodeIndex}] MAX STEP Cezası");
                 AddReward(-10f);   // ceza
                 EndEpisode();
                 return;            // kalan kodu çalıştırma
@@ -409,7 +410,7 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(-pitchPenalty);
                 counter-=0.001f;
-                LogMessage($"[Reward] PitchX hareket cezası: {-movePenalty}");
+                LogMessage($"[Reward] PitchX hareket cezası: {-pitchPenalty}");
                 
             }
             
@@ -417,7 +418,7 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(-pitchPenalty);
                 counter-=0.001f;
-                LogMessage($"[Reward] PitchZ hareket cezası: {-movePenalty}");
+                LogMessage($"[Reward] PitchZ hareket cezası: {-pitchPenalty}");
                 
             }
             
@@ -468,7 +469,7 @@ namespace RLUnity.Cs_Scripts
                     if (angleFromUp >= 89f)
                     {
                         AddReward(-10f);
-                        Debug.Log("Taklaya Geldik");
+                        Debug.Log("Takla");
                         EndEpisode();
                     }
         
@@ -558,7 +559,7 @@ namespace RLUnity.Cs_Scripts
                 float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
                 if (distance < 1.0f)
                 {
-                    //Debug.Log("eşşeklik cezası");
+                    //Debug.Log("hareketsizlik cezası");
                     AddReward(-0.05f);
                     counter -= 0.05f;
                     LogMessage("[Reward] Landing alanına yakınlık cezası: -0.05");
