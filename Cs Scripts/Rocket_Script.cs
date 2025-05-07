@@ -27,11 +27,13 @@ namespace RLUnity.Cs_Scripts
        [Header("Step Settings")]
        
        [SerializeField] private int phase1Steps = 650;      // Evre‑1: salt Y kontrol eskiden 4000
-       [SerializeField] private int phase2Steps = 1300;//+650
-       [SerializeField] private int phase3Steps = 2600; // Evre‑3 bitişi (kümülatif)14000
+       [SerializeField] private int phase2Steps = 800;
+       [SerializeField] private int phase3Steps = 1450; //+650
+       [SerializeField] private int phase4Steps = 1850;
+       [SerializeField] private int phase5Steps = 2850;// Evre‑3 bitişi (kümülatif)14000
        [SerializeField] private float riseSpeedPhase1 = 0.005f; // Y ekseni artış (hızlı)
        [SerializeField] private float riseSpeedPhase2 = 0.005f; // Y ekseni artış (yavaş)
-       [SerializeField] private float maxRiseY = 4.5f; 
+       [SerializeField] private float maxRiseY = 4.0f; 
        [SerializeField] private int maxEpisodeSteps = 500;
     
     
@@ -45,22 +47,18 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private Transform sensorRoot;   // Inspector’dan SensorRoot'u sürükle
 
         //[SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
-        [SerializeField] private float stepPenalty = 0.005f;  // Zaman cezası (her adım)
-        [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
-        [FormerlySerializedAs("AlaboraPenalty")] 
-        [SerializeField] private float alaboraPenalty = 1f;  
+        [SerializeField] private float stepPenalty = 0.003f;  // Zaman cezası (her adım)
+        //[SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
 
-
-        [Header("Stability Reward Settings")]
-        [SerializeField] private float stableVelocityThreshold = 0.1f;
-        [SerializeField] private float stableAngleThreshold = 5f;  // Kaç derecenin altı dik sayılacak
-        [SerializeField] private float stableReward = 0.5f; 
+        //[Header("Stability Reward Settings")]
+        //[SerializeField] private float stableVelocityThreshold = 0.1f;
+        //[SerializeField] private float stableAngleThreshold = 5f;  // Kaç derecenin altı dik sayılacak
+        //[SerializeField] private float stableReward = 0.5f; 
 
         [Header("Approach Reward")]
-        [SerializeField] private float approachRewardFactor = 0.1f;  //ekponansiyel ödül katsayısı
+       // [SerializeField] private float approachRewardFactor = 0.1f;  //ekponansiyel ödül katsayısı
         [SerializeField] public float tiltThreshold = 10f;            // Başlangıç ceza eşiği
-        [SerializeField] private float recoveryReward = 0.1f;        // Düzeltme ödül katsayısı
-        [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
+        //[SerializeField] private float recoveryReward = 0.1f;        // Düzeltme ödül katsayısı
         [SerializeField] private float penaltyInterval = 1f;
         [Header("Astro Position")]
 
@@ -80,13 +78,15 @@ namespace RLUnity.Cs_Scripts
         private bool isTraining ;
 
 // Yardımcı:
-        private enum Phase { One, Two, Three }
+        private enum Phase { One, Two, Three, Four, Five }
 
         private Phase CurrentPhase =>
             episodeIndex < phase1Steps ? Phase.One :
             episodeIndex < phase2Steps ? Phase.Two :
             episodeIndex < phase3Steps ? Phase.Three :
-            Phase.Three;
+            episodeIndex < phase4Steps ? Phase.Four :
+            episodeIndex < phase5Steps ? Phase.Five :
+            Phase.Five;
 
  
         //ReSharper disable Unity.PerformanceAnalysis
@@ -168,9 +168,35 @@ namespace RLUnity.Cs_Scripts
                 float y = Mathf.Min(1.17f + (episodeIndex - phase1Steps) * riseSpeedPhase2, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
-            else if (CurrentPhase == Phase.Three && isTraining) // Phase.Three
+            else if (CurrentPhase == Phase.Three&& isTraining)
             {
-                float y = Mathf.Min(1.17f + (episodeIndex - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                // (0,0,0)’a geri dön, yavaş Y yükselişi
+                float y = Mathf.Min(1.17f + (episodeIndex - phase2Steps) * riseSpeedPhase2, maxRiseY);
+                astro.position = new Vector3(0f, y, 0f);
+            }
+            else if (CurrentPhase == Phase.Four && isTraining) // Phase.Three
+            {
+                float y = Mathf.Min(1.17f + (episodeIndex - phase3Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float height    = y - 0.877f;
+                //30 derecelik hareket dışında yapmasın diye yeni mekanizma
+                float maxRadius = Mathf.Tan(30f * Mathf.Deg2Rad) * height;
+                Vector2 rnd     = Random.insideUnitCircle * maxRadius;
+                float offsetX   = rnd.x;
+                float offsetZ   = rnd.y;
+                /*
+                float boundary2 = (y - 0.877f)/2f;
+                // Eski mantığı aynen kullan – X‑Z’de uzaklaş + Y’de hafif yüksel
+                float boundary = Math.Min(((episodeIndex - phase2Steps) * astroStepFactor)/2,boundary2);
+                float offsetX  = Random.Range(-boundary, boundary);
+                float offsetZ  = Random.Range(-boundary, boundary);
+*/
+
+                astro.position = new Vector3(transform.position.x + offsetX, y,
+                    transform.position.z + offsetZ);
+            }
+            else if (CurrentPhase == Phase.Five && isTraining) // Phase.Three
+            {
+                float y = Mathf.Min(1.17f + (episodeIndex - phase4Steps) * carpan * riseSpeedPhase2, maxRiseY);
                 float height    = y - 0.877f;
                 //30 derecelik hareket dışında yapmasın diye yeni mekanizma
                 float maxRadius = Mathf.Tan(30f * Mathf.Deg2Rad) * height;
@@ -453,26 +479,23 @@ namespace RLUnity.Cs_Scripts
                     // Aşım miktarını hesaplayalım:
                     float currentTiltError = angleFromUp - tiltThreshold;
                     // Temel ceza: Aşım miktarına göre ceza
-                    float basePenalty = tiltPenalty * currentTiltError;
-                    AddReward(-basePenalty);
-                    counter -=basePenalty ;
-                    LogMessage($"[Reward] Eğim cezası: {-basePenalty}");
+                    //float basePenalty = tiltPenalty * currentTiltError;
+                    //AddReward(-basePenalty);
+                    //counter -=basePenalty ;
+                    //LogMessage($"[Reward] Eğim cezası: {-basePenalty}");
         
                     // Eğer açı extreme değerin üzerinde ise (bağımsız olarak ek ceza):
-                    if (angleFromUp >= extremeTiltAngle)
+                    if (angleFromUp >= 80f)
                     {
-                        AddReward(-alaboraPenalty);
-                        counter -=alaboraPenalty ;
-                        LogMessage($"[Reward] Aşırı eğim cezası: {-alaboraPenalty}");
-                    }
 
-                    if (angleFromUp >= 89f)
-                    {
+                        counter -=10f ;
+                        LogMessage($"[Reward] Aşırı eğim cezası: -10");
                         AddReward(-10f);
                         Debug.Log("Takla");
                         EndEpisode();
                     }
-        
+
+
                     // Sonraki ceza periyodunu ayarla:
                     _nextPenaltyThreshold += penaltyInterval;
                 }
