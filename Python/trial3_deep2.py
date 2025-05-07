@@ -7,6 +7,7 @@ import random
 from collections import deque, namedtuple
 import datetime
 from mlagents_envs.environment import UnityEnvironment
+from mlagents_envs.side_channel.environment_parameters_channel import EnvironmentParametersChannel
 from mlagents_envs.base_env import ActionTuple
 import matplotlib.pyplot as plt
 import pytz
@@ -132,7 +133,9 @@ class Critic(nn.Module):
 ##########################################
 print('waiting unity')
 # Editor'de Play mode'da: file_name=None, base_port=5004 (Project Settings/ML-Agents -> Editor Port)
-env = UnityEnvironment(file_name=None, base_port=5004)
+env_params = EnvironmentParametersChannel()
+env = UnityEnvironment(file_name=None, base_port=5004, side_channels=[env_params])
+env_params.set_float_parameter("is_training", 1.0)#Training
 env.reset()
 print('ekin')
 # Mevcut Behavior adlarını al

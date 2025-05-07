@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
+from mlagents_envs.side_channel.environment_parameters_channel import EnvironmentParametersChannel
 
 ########################################
 # Ayarlar – yalnızca bunları değiştir
@@ -15,8 +16,9 @@ MODEL_PATH ="models/actor2025-05-05_11:24.pth"
 UNITY_EXEC = None          # Editor’da Play modundaysan None bırak
 BASE_PORT  = 5004          # ProjectSettings/ML-Agents → Editor Port
 MAX_EPISODES = 20          # Kaç tam bölüm koşturalım?
-RENDER_EVERY_STEP = False  # Unity tarafında otomatik render açıksa True’ya gerek yok
+RENDER_EVERY_STEP = True  # Unity tarafında otomatik render açıksa True’ya gerek yok
 NOISE_STD = 0.0            # İstersen hafif exploration ekle (örn. 0.05)
+
 
 device = torch.device("mps" if torch.backends.mps.is_available() else
                       "cuda" if torch.cuda.is_available() else "cpu")
@@ -43,8 +45,10 @@ class Actor(nn.Module):
 ########################################
 # Ortamı başlat
 ########################################
+env_params = EnvironmentParametersChannel()
 print("Unity başlatılıyor…")
-env = UnityEnvironment(file_name=None, base_port=5004)
+env = UnityEnvironment(file_name=None, base_port=5004, side_channels=[env_params])
+env_params.set_float_parameter("is_training", 0.0)#test
 env.reset()
 
 behavior_name = list(env.behavior_specs.keys())[0]

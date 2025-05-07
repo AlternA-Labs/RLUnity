@@ -77,6 +77,7 @@ namespace RLUnity.Cs_Scripts
         private int episodeIndex = 0;
         private int episodeStep = 0; 
         private long stepCount = 0;
+        private bool isTraining ;
 
 // Yardımcı:
         private enum Phase { One, Two, Three }
@@ -142,6 +143,14 @@ namespace RLUnity.Cs_Scripts
             _astroRenderer = _astroGO.GetComponentInChildren<SkinnedMeshRenderer>();
             _astroCollider = _astroGO.GetComponentInChildren<BoxCollider>();
             astroDestroyed = false;
+        }
+
+        public override void Initialize()
+        {
+            var envParams = Academy.Instance.EnvironmentParameters;
+            float flag = envParams.GetWithDefault("is_training", 1f);
+            isTraining = flag > 0.5f;
+            Debug.Log(isTraining);
         }
         
 // Kodu OnEpisodeBegin sonunda çağır
