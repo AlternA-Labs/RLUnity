@@ -17,7 +17,7 @@ import pandas as pd
 ##########################################
 # Hiperparametreler
 ##########################################
-MAX_STEPS = 18_000             # Toplam adım sayısı (tüm ajanlar için toplu)
+MAX_STEPS = 100_000             # Toplam adım sayısı (tüm ajanlar için toplu)
 BATCH_SIZE = 256                 # Mini-batch boyutu
 GAMMA = 0.99                    # İndirim faktörü
 LEARNING_RATE = 3e-5            # Öğrenme hızı
