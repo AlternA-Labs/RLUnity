@@ -361,10 +361,15 @@ while global_step < MAX_STEPS:
 env.close()
 print("Eğitim tamamlandı.")
 
-plot(metrics_log)
-
-print(formatted_datetime)
-
 torch.save(actor.state_dict(), f"models/actor{formatted_datetime}.pth")
 torch.save(critic.state_dict(), f"models/critic{formatted_datetime}.pth")
 print(f"Son adımda Actor ve Critic modeli kaydedildi: actor{formatted_datetime}.pth")
+try:
+    plot(metrics_log)
+except Exception as e:
+    print(f"Grafik çizilirken hata oluştu: {e}")
+    training_error_occurred=True
+
+print(formatted_datetime)
+
+

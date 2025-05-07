@@ -8,6 +8,9 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace RLUnity.Cs_Scripts
 {
@@ -68,6 +71,7 @@ namespace RLUnity.Cs_Scripts
         private float _previousDistanceToAstro = 0f;
         private float _tiltTimeAccumulator = 0f; 
         private float _nextPenaltyThreshold = 1f;
+        bool trainingFinished = false;
         private GameObject m_LandObject;
         private float counter = 0f;
         private int episodeIndex = 0;
@@ -170,24 +174,21 @@ namespace RLUnity.Cs_Scripts
         }
 
         public override void OnEpisodeBegin()
-        {   // Örnek güvenli blok
+        {  
             if (episodeIndex > phase3Steps)
             {
                 Debug.Log("Eğitim tamamlandı – simülasyon durduruluyor.");
+                //böyle yapmak kırmızı hata veriyor farkındayım ancak kırmızı hata bizi etkilemiyor ve çözümü unity nin
+                // çökmesine yol açıyor.
+                Academy.Instance.EnvironmentStep(); 
+                Academy.Instance.Dispose();           
+#if UNITY_EDITOR
+                EditorApplication.isPlaying = false;
+#else
+                Application.Quit();
+#endif
 
-                if (Academy.Instance.IsCommunicatorOn)      // Python varsa kapatma!
-                {
-                    // Trainer koşuyor → yalnızca Episode’i bitir
-                    EndEpisode();            // İstersen burada ödül yaz
-                }
-                else
-                {
-                    // Stand‑alone / inference
-                    Academy.Instance.EnvironmentStep();
-                    Academy.Instance.Dispose();             // Tamamen kapat
-                    Application.Quit();
-                }
-                return;
+           
             }
 
             Debug.Log($"Episode: {episodeIndex}, Phase: {CurrentPhase}");
@@ -282,47 +283,6 @@ namespace RLUnity.Cs_Scripts
 
         public override void CollectObservations(VectorSensor sensor)
         {
-            /*
-            // 1) Astro’ya birim yön vektörü (3 float)
-            Vector3 dir = (!astroDestroyed 
-                              ? astro.position 
-                              : landingSite.position)
-                          - transform.position;
-            sensor.AddObservation(dir.normalized);
-           // Debug.Log($"Astro position: {dir.normalized}");
-
-            // 2) Ham mesafe (1 float)
-            sensor.AddObservation(dir.magnitude);
-
-            // 3) Hedefe yönelik hız bileşeni (1 float)
-            float fwdSpeed = Vector3.Dot(rb.linearVelocity, dir.normalized);
-            sensor.AddObservation(fwdSpeed);
-
-            // 4) Roketin “up” vektörü (3 float)
-            sensor.AddObservation(transform.up);
-
-            // 5) Ham hız vektörü (3 float)
-            sensor.AddObservation(rb.linearVelocity);
-            // 6) Raycast ile duvar mesafeleri (5 yönde)
-            
-            RaycastHit hit;
-            
-            float forwardDist = Physics.Raycast(transform.position, transform.forward, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(forwardDist);
-
-            float leftDist = Physics.Raycast(transform.position, -transform.right, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(leftDist);
-
-            float rightDist = Physics.Raycast(transform.position, transform.right, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(rightDist);
-
-            float backDist = Physics.Raycast(transform.position, -transform.forward, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(backDist);
-            // UP (yukarı)
-            float upDist = Physics.Raycast(transform.position, transform.up, out hit, 15f) ? hit.distance : 15f;
-            sensor.AddObservation(upDist);
-            //Debug.Log($"forward: {forwardDist}, left: {leftDist}, right: {rightDist}, back: {backDist}, up: {upDist}");
-*/
             // 1) Hedef vektörü
             Vector3 dir = (!astroDestroyed ? astro.position : landingSite.position) 
                           - sensorRoot.position;
