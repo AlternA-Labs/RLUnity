@@ -23,10 +23,11 @@ namespace RLUnity.Cs_Scripts
 
        [Header("Step Settings")]
        
-       [SerializeField] private int phase1Steps = 4000;      // Evre‑1: salt Y kontrol
-       [SerializeField] private int phase2Steps = 14000;      // Evre‑2 bitişi (kümülatif)
-       [SerializeField] private float riseSpeedPhase1 = 0.002f; // Y ekseni artış (hızlı)
-       [SerializeField] private float riseSpeedPhase2 = 0.002f; // Y ekseni artış (yavaş)
+       [SerializeField] private int phase1Steps = 650;      // Evre‑1: salt Y kontrol eskiden 4000
+       [SerializeField] private int phase2Steps = 1300;//+650
+       [SerializeField] private int phase3Steps = 2600; // Evre‑3 bitişi (kümülatif)14000
+       [SerializeField] private float riseSpeedPhase1 = 0.005f; // Y ekseni artış (hızlı)
+       [SerializeField] private float riseSpeedPhase2 = 0.005f; // Y ekseni artış (yavaş)
        [SerializeField] private float maxRiseY = 4.5f; 
        [SerializeField] private int maxEpisodeSteps = 500;
     
@@ -37,11 +38,11 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
-        [SerializeField] private float pitchPenalty = 0.005f;
+        [SerializeField] private float pitchPenalty = 0.01f;
         [SerializeField] private Transform sensorRoot;   // Inspector’dan SensorRoot'u sürükle
 
         [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
-        [SerializeField] private float stepPenalty = 0.001f;  // Zaman cezası (her adım)
+        [SerializeField] private float stepPenalty = 0.005f;  // Zaman cezası (her adım)
         [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
         [FormerlySerializedAs("AlaboraPenalty")] 
         [SerializeField] private float alaboraPenalty = 1f;  
@@ -61,7 +62,7 @@ namespace RLUnity.Cs_Scripts
         [Header("Astro Position")]
 
         
-        [SerializeField] private float astroStepFactor = 0.0000002f;
+        [SerializeField] private float astroStepFactor = 0.000008f;
     
         // Önceki mesafeyi tutarak yaklaşma/uzaklaşma hesabı
         private float _previousDistanceToAstro = 0f;
@@ -75,12 +76,14 @@ namespace RLUnity.Cs_Scripts
 
 // Yardımcı:
         private enum Phase { One, Two, Three }
+
         private Phase CurrentPhase =>
-            stepCount <  phase1Steps            ? Phase.One  :
-            stepCount <  phase2Steps            ? Phase.Two  :
+            episodeIndex < phase1Steps ? Phase.One :
+            episodeIndex < phase2Steps ? Phase.Two :
+            episodeIndex < phase3Steps ? Phase.Three :
             Phase.Three;
 
-
+ 
         //ReSharper disable Unity.PerformanceAnalysis
         // Loglama için yeni eklenen alanlar
         private string logFilePath;
@@ -90,7 +93,7 @@ namespace RLUnity.Cs_Scripts
         private GameObject  _astroGO;
         private SkinnedMeshRenderer _astroRenderer;
         private BoxCollider _astroCollider;
-        private float carpan = 0.1f ;
+        private float carpan = 0.5f ;
 
         // Başlangıçta log dosyasını ayarla
         private void LogMessage(string message)
@@ -142,24 +145,21 @@ namespace RLUnity.Cs_Scripts
         {
             if (CurrentPhase == Phase.One)
             {
-                Debug.Log("Phase 1");
                 // Başlangıç (0,0,0)’a yakın + hızlı Y yükselişi
-                float y = Mathf.Min(1.1f + stepCount * riseSpeedPhase1, maxRiseY);
+                float y = Mathf.Min(1.17f + episodeIndex * riseSpeedPhase1, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
             else if (CurrentPhase == Phase.Two)
             {
-                Debug.Log("Phase 2");
                 // (0,0,0)’a geri dön, yavaş Y yükselişi
-                float y = Mathf.Min(1.1f + (stepCount - phase1Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float y = Mathf.Min(1.17f + (episodeIndex - phase1Steps) * riseSpeedPhase2, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
-            else  // Phase.Three
+            else if (CurrentPhase == Phase.Three) // Phase.Three
             {
-                Debug.Log("Phase 3");
-                float y = Mathf.Min(1.1f + (stepCount - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float y = Mathf.Min(1.17f + (episodeIndex - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
                 // Eski mantığı aynen kullan – X‑Z’de uzaklaş + Y’de hafif yüksel
-                float boundary = Math.Min(((stepCount - phase2Steps) * astroStepFactor)/2,2f);
+                float boundary = Math.Min(((episodeIndex - phase2Steps) * astroStepFactor)/2,2f);
                 float offsetX  = Random.Range(-boundary, boundary);
                 float offsetZ  = Random.Range(-boundary, boundary);
 
@@ -170,8 +170,27 @@ namespace RLUnity.Cs_Scripts
         }
 
         public override void OnEpisodeBegin()
-        {   
-            
+        {   // Örnek güvenli blok
+            if (episodeIndex > phase3Steps)
+            {
+                Debug.Log("Eğitim tamamlandı – simülasyon durduruluyor.");
+
+                if (Academy.Instance.IsCommunicatorOn)      // Python varsa kapatma!
+                {
+                    // Trainer koşuyor → yalnızca Episode’i bitir
+                    EndEpisode();            // İstersen burada ödül yaz
+                }
+                else
+                {
+                    // Stand‑alone / inference
+                    Academy.Instance.EnvironmentStep();
+                    Academy.Instance.Dispose();             // Tamamen kapat
+                    Application.Quit();
+                }
+                return;
+            }
+
+            Debug.Log($"Episode: {episodeIndex}, Phase: {CurrentPhase}");
             episodeStep = 0;  
             SetReward(0f);
             episodeIndex++;
@@ -238,6 +257,8 @@ namespace RLUnity.Cs_Scripts
                 transform.position.z + offsetZ
             );
             */
+            
+            
             Debug.Log($"stepCount: {stepCount}");
             Debug.Log($"astroY: {astro.position.y}");
             _astroRenderer.enabled = true;
@@ -355,7 +376,7 @@ namespace RLUnity.Cs_Scripts
                 return;            // kalan kodu çalıştırma
             }
             
-            bool freezePhase = stepCount < phase1Steps;
+            bool freezePhase = CurrentPhase == Phase.One;
 
             if (freezePhase)
             {
@@ -470,12 +491,12 @@ namespace RLUnity.Cs_Scripts
                 if (_tiltTimeAccumulator > penaltyInterval)
                 {       
                     // Eğer tilt durumu en az penaltyInterval sürdüyse, fazladan kalan süre için ödül ver
-                    float recoveryTime = _tiltTimeAccumulator - penaltyInterval;
-                    float rew = recoveryReward * recoveryTime;
+                    //float recoveryTime = _tiltTimeAccumulator - penaltyInterval;
+                    //float rew = recoveryReward * recoveryTime;
                     //AddReward(rew);
                     //counter += rew;
-                    Debug.Log($"Kendnini Düzeltme ödülü:{rew}");
-                    LogMessage($"[Reward] Düzeltme ödülü: {rew}");
+                    //Debug.Log($"Kendnini Düzeltme ödülü:{rew}");
+                    //LogMessage($"[Reward] Düzeltme ödülü: {rew}");
                 }
                 // Sayaçları sıfırlayalım:
                 _tiltTimeAccumulator = 0f;

@@ -10,10 +10,11 @@ from mlagents_envs.base_env import ActionTuple
 ########################################
 # Ayarlar – yalnızca bunları değiştir
 ########################################
-MODEL_PATH = "models/actor2025-04-29_09:56.pth"   # <- kendi .pth adını gir
+MODEL_PATH ="models/actor2025-05-05_11:24.pth"
+    #"models/actor2025-04-29_09:56.pth"   # <- bu şimdilik en iyisiydi.
 UNITY_EXEC = None          # Editor’da Play modundaysan None bırak
 BASE_PORT  = 5004          # ProjectSettings/ML-Agents → Editor Port
-MAX_EPISODES = 10          # Kaç tam bölüm koşturalım?
+MAX_EPISODES = 20          # Kaç tam bölüm koşturalım?
 RENDER_EVERY_STEP = False  # Unity tarafında otomatik render açıksa True’ya gerek yok
 NOISE_STD = 0.0            # İstersen hafif exploration ekle (örn. 0.05)
 
