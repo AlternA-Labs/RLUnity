@@ -8,6 +8,9 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace RLUnity.Cs_Scripts
 {
@@ -24,11 +27,13 @@ namespace RLUnity.Cs_Scripts
        [Header("Step Settings")]
        
        [SerializeField] private int phase1Steps = 650;      // Evre‑1: salt Y kontrol eskiden 4000
-       [SerializeField] private int phase2Steps = 1300;//+650
-       [SerializeField] private int phase3Steps = 2600; // Evre‑3 bitişi (kümülatif)14000
+       [SerializeField] private int phase2Steps = 800;
+       [SerializeField] private int phase3Steps = 1450; //+650
+       [SerializeField] private int phase4Steps = 1850;
+       [SerializeField] private int phase5Steps = 2850;// Evre‑3 bitişi (kümülatif)14000
        [SerializeField] private float riseSpeedPhase1 = 0.005f; // Y ekseni artış (hızlı)
        [SerializeField] private float riseSpeedPhase2 = 0.005f; // Y ekseni artış (yavaş)
-       [SerializeField] private float maxRiseY = 4.5f; 
+       [SerializeField] private float maxRiseY = 4.0f; 
        [SerializeField] private int maxEpisodeSteps = 500;
     
     
@@ -38,26 +43,22 @@ namespace RLUnity.Cs_Scripts
         [SerializeField] private float thrustForce;//thrust force u delta time ile carpabilmek icin episode begine aldim.
 
         [Header("Penalties / Rewards")]
-        [SerializeField] private float pitchPenalty = 0.01f;
+        [SerializeField] private float pitchPenalty = 0.05f;
         [SerializeField] private Transform sensorRoot;   // Inspector’dan SensorRoot'u sürükle
 
-        [SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
-        [SerializeField] private float stepPenalty = 0.005f;  // Zaman cezası (her adım)
-        [SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
-        [FormerlySerializedAs("AlaboraPenalty")] 
-        [SerializeField] private float alaboraPenalty = 1f;  
+        //[SerializeField] private float movePenalty = 0.05f;  // pitch kullanım cezası
+        [SerializeField] private float stepPenalty = 0.003f;  // Zaman cezası (her adım)
+        //[SerializeField] private float tiltPenalty = 0.02f;   // Yan yatma cezası (her adım)
 
-
-        [Header("Stability Reward Settings")]
-        [SerializeField] private float stableVelocityThreshold = 0.1f;
-        [SerializeField] private float stableAngleThreshold = 5f;  // Kaç derecenin altı dik sayılacak
-        [SerializeField] private float stableReward = 0.5f; 
+        //[Header("Stability Reward Settings")]
+        //[SerializeField] private float stableVelocityThreshold = 0.1f;
+        //[SerializeField] private float stableAngleThreshold = 5f;  // Kaç derecenin altı dik sayılacak
+        //[SerializeField] private float stableReward = 0.5f; 
 
         [Header("Approach Reward")]
-        [SerializeField] private float approachRewardFactor = 0.1f;  //ekponansiyel ödül katsayısı
+       // [SerializeField] private float approachRewardFactor = 0.1f;  //ekponansiyel ödül katsayısı
         [SerializeField] public float tiltThreshold = 10f;            // Başlangıç ceza eşiği
-        [SerializeField] private float recoveryReward = 0.1f;        // Düzeltme ödül katsayısı
-        [SerializeField] private float extremeTiltAngle = 80f;        // Aşırı sapma eşiği (örneğin 80 derece)
+        //[SerializeField] private float recoveryReward = 0.1f;        // Düzeltme ödül katsayısı
         [SerializeField] private float penaltyInterval = 1f;
         [Header("Astro Position")]
 
@@ -68,20 +69,24 @@ namespace RLUnity.Cs_Scripts
         private float _previousDistanceToAstro = 0f;
         private float _tiltTimeAccumulator = 0f; 
         private float _nextPenaltyThreshold = 1f;
+        bool trainingFinished = false;
         private GameObject m_LandObject;
         private float counter = 0f;
         private int episodeIndex = 0;
         private int episodeStep = 0; 
         private long stepCount = 0;
+        private bool isTraining ;
 
 // Yardımcı:
-        private enum Phase { One, Two, Three }
+        private enum Phase { One, Two, Three, Four, Five }
 
         private Phase CurrentPhase =>
             episodeIndex < phase1Steps ? Phase.One :
             episodeIndex < phase2Steps ? Phase.Two :
             episodeIndex < phase3Steps ? Phase.Three :
-            Phase.Three;
+            episodeIndex < phase4Steps ? Phase.Four :
+            episodeIndex < phase5Steps ? Phase.Five :
+            Phase.Five;
 
  
         //ReSharper disable Unity.PerformanceAnalysis
@@ -139,55 +144,108 @@ namespace RLUnity.Cs_Scripts
             _astroCollider = _astroGO.GetComponentInChildren<BoxCollider>();
             astroDestroyed = false;
         }
+
+        public override void Initialize()
+        {
+            var envParams = Academy.Instance.EnvironmentParameters;
+            float flag = envParams.GetWithDefault("is_training", 1f);
+            isTraining = flag > 0.5f;//bu false olunca test
+            Debug.Log(isTraining);
+        }
         
 // Kodu OnEpisodeBegin sonunda çağır
         private void PlaceAstro()
         {
-            if (CurrentPhase == Phase.One)
+            if (CurrentPhase == Phase.One && isTraining)
             {
                 // Başlangıç (0,0,0)’a yakın + hızlı Y yükselişi
                 float y = Mathf.Min(1.17f + episodeIndex * riseSpeedPhase1, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
-            else if (CurrentPhase == Phase.Two)
+            else if (CurrentPhase == Phase.Two&& isTraining)
             {
                 // (0,0,0)’a geri dön, yavaş Y yükselişi
                 float y = Mathf.Min(1.17f + (episodeIndex - phase1Steps) * riseSpeedPhase2, maxRiseY);
                 astro.position = new Vector3(0f, y, 0f);
             }
-            else if (CurrentPhase == Phase.Three) // Phase.Three
+            else if (CurrentPhase == Phase.Three&& isTraining)
             {
-                float y = Mathf.Min(1.17f + (episodeIndex - phase2Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                // (0,0,0)’a geri dön, yavaş Y yükselişi
+                float y = Mathf.Min(1.17f + (episodeIndex - phase2Steps) * riseSpeedPhase2, maxRiseY);
+                astro.position = new Vector3(0f, y, 0f);
+            }
+            else if (CurrentPhase == Phase.Four && isTraining) // Phase.Three
+            {
+                float y = Mathf.Min(1.17f + (episodeIndex - phase3Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float height    = y - 0.877f;
+                //30 derecelik hareket dışında yapmasın diye yeni mekanizma
+                float maxRadius = Mathf.Tan(30f * Mathf.Deg2Rad) * height;
+                Vector2 rnd     = Random.insideUnitCircle * maxRadius;
+                float offsetX   = rnd.x;
+                float offsetZ   = rnd.y;
+                /*
+                float boundary2 = (y - 0.877f)/2f;
                 // Eski mantığı aynen kullan – X‑Z’de uzaklaş + Y’de hafif yüksel
-                float boundary = Math.Min(((episodeIndex - phase2Steps) * astroStepFactor)/2,2f);
+                float boundary = Math.Min(((episodeIndex - phase2Steps) * astroStepFactor)/2,boundary2);
                 float offsetX  = Random.Range(-boundary, boundary);
                 float offsetZ  = Random.Range(-boundary, boundary);
+*/
 
+                astro.position = new Vector3(transform.position.x + offsetX, y,
+                    transform.position.z + offsetZ);
+            }
+            else if (CurrentPhase == Phase.Five && isTraining) // Phase.Three
+            {
+                float y = Mathf.Min(1.17f + (episodeIndex - phase4Steps) * carpan * riseSpeedPhase2, maxRiseY);
+                float height    = y - 0.877f;
+                //30 derecelik hareket dışında yapmasın diye yeni mekanizma
+                float maxRadius = Mathf.Tan(30f * Mathf.Deg2Rad) * height;
+                Vector2 rnd     = Random.insideUnitCircle * maxRadius;
+                float offsetX   = rnd.x;
+                float offsetZ   = rnd.y;
+                /*
+                float boundary2 = (y - 0.877f)/2f;
+                // Eski mantığı aynen kullan – X‑Z’de uzaklaş + Y’de hafif yüksel
+                float boundary = Math.Min(((episodeIndex - phase2Steps) * astroStepFactor)/2,boundary2);
+                float offsetX  = Random.Range(-boundary, boundary);
+                float offsetZ  = Random.Range(-boundary, boundary);
+*/
 
+                astro.position = new Vector3(transform.position.x + offsetX, y,
+                    transform.position.z + offsetZ);
+            }
+            else if (!isTraining)
+            {
+                Debug.Log("TEST");
+                float y = Random.Range(1.30f, 3.5f);
+                float height    = y - 0.877f;
+                //30 derecelik hareket dışında yapmasın diye yeni mekanizma
+                float maxRadius = Mathf.Tan(30f * Mathf.Deg2Rad) * height;
+                Vector2 rnd     = Random.insideUnitCircle * maxRadius;
+                float offsetX   = rnd.x;
+                float offsetZ   = rnd.y;
+                
                 astro.position = new Vector3(transform.position.x + offsetX, y,
                     transform.position.z + offsetZ);
             }
         }
 
         public override void OnEpisodeBegin()
-        {   // Örnek güvenli blok
+        {  
             if (episodeIndex > phase3Steps)
             {
                 Debug.Log("Eğitim tamamlandı – simülasyon durduruluyor.");
+                //böyle yapmak kırmızı hata veriyor farkındayım ancak kırmızı hata bizi etkilemiyor ve çözümü unity nin
+                // çökmesine yol açıyor.
+                Academy.Instance.EnvironmentStep(); 
+                Academy.Instance.Dispose();           
+#if UNITY_EDITOR
+                EditorApplication.isPlaying = false;
+#else
+                Application.Quit();
+#endif
 
-                if (Academy.Instance.IsCommunicatorOn)      // Python varsa kapatma!
-                {
-                    // Trainer koşuyor → yalnızca Episode’i bitir
-                    EndEpisode();            // İstersen burada ödül yaz
-                }
-                else
-                {
-                    // Stand‑alone / inference
-                    Academy.Instance.EnvironmentStep();
-                    Academy.Instance.Dispose();             // Tamamen kapat
-                    Application.Quit();
-                }
-                return;
+           
             }
 
             Debug.Log($"Episode: {episodeIndex}, Phase: {CurrentPhase}");
@@ -282,47 +340,6 @@ namespace RLUnity.Cs_Scripts
 
         public override void CollectObservations(VectorSensor sensor)
         {
-            /*
-            // 1) Astro’ya birim yön vektörü (3 float)
-            Vector3 dir = (!astroDestroyed 
-                              ? astro.position 
-                              : landingSite.position)
-                          - transform.position;
-            sensor.AddObservation(dir.normalized);
-           // Debug.Log($"Astro position: {dir.normalized}");
-
-            // 2) Ham mesafe (1 float)
-            sensor.AddObservation(dir.magnitude);
-
-            // 3) Hedefe yönelik hız bileşeni (1 float)
-            float fwdSpeed = Vector3.Dot(rb.linearVelocity, dir.normalized);
-            sensor.AddObservation(fwdSpeed);
-
-            // 4) Roketin “up” vektörü (3 float)
-            sensor.AddObservation(transform.up);
-
-            // 5) Ham hız vektörü (3 float)
-            sensor.AddObservation(rb.linearVelocity);
-            // 6) Raycast ile duvar mesafeleri (5 yönde)
-            
-            RaycastHit hit;
-            
-            float forwardDist = Physics.Raycast(transform.position, transform.forward, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(forwardDist);
-
-            float leftDist = Physics.Raycast(transform.position, -transform.right, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(leftDist);
-
-            float rightDist = Physics.Raycast(transform.position, transform.right, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(rightDist);
-
-            float backDist = Physics.Raycast(transform.position, -transform.forward, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(backDist);
-            // UP (yukarı)
-            float upDist = Physics.Raycast(transform.position, transform.up, out hit, 15f) ? hit.distance : 15f;
-            sensor.AddObservation(upDist);
-            //Debug.Log($"forward: {forwardDist}, left: {leftDist}, right: {rightDist}, back: {backDist}, up: {upDist}");
-*/
             // 1) Hedef vektörü
             Vector3 dir = (!astroDestroyed ? astro.position : landingSite.position) 
                           - sensorRoot.position;
@@ -371,6 +388,7 @@ namespace RLUnity.Cs_Scripts
             episodeStep++;
             if (episodeStep > maxEpisodeSteps)
             {
+                Debug.Log($"[Episode: {episodeIndex}] MAX STEP Cezası");
                 AddReward(-10f);   // ceza
                 EndEpisode();
                 return;            // kalan kodu çalıştırma
@@ -378,7 +396,7 @@ namespace RLUnity.Cs_Scripts
             
             bool freezePhase = CurrentPhase == Phase.One;
 
-            if (freezePhase)
+            if (freezePhase && isTraining)
             {
                 // 1) Pozisyon ve rotasyonu kilitle
                 rb.constraints = RigidbodyConstraints.FreezePositionX |
@@ -418,7 +436,7 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(-pitchPenalty);
                 counter-=0.001f;
-                LogMessage($"[Reward] PitchX hareket cezası: {-movePenalty}");
+                LogMessage($"[Reward] PitchX hareket cezası: {-pitchPenalty}");
                 
             }
             
@@ -426,7 +444,7 @@ namespace RLUnity.Cs_Scripts
             {
                 AddReward(-pitchPenalty);
                 counter-=0.001f;
-                LogMessage($"[Reward] PitchZ hareket cezası: {-movePenalty}");
+                LogMessage($"[Reward] PitchZ hareket cezası: {-pitchPenalty}");
                 
             }
             
@@ -461,26 +479,23 @@ namespace RLUnity.Cs_Scripts
                     // Aşım miktarını hesaplayalım:
                     float currentTiltError = angleFromUp - tiltThreshold;
                     // Temel ceza: Aşım miktarına göre ceza
-                    float basePenalty = tiltPenalty * currentTiltError;
-                    AddReward(-basePenalty);
-                    counter -=basePenalty ;
-                    LogMessage($"[Reward] Eğim cezası: {-basePenalty}");
+                    //float basePenalty = tiltPenalty * currentTiltError;
+                    //AddReward(-basePenalty);
+                    //counter -=basePenalty ;
+                    //LogMessage($"[Reward] Eğim cezası: {-basePenalty}");
         
                     // Eğer açı extreme değerin üzerinde ise (bağımsız olarak ek ceza):
-                    if (angleFromUp >= extremeTiltAngle)
+                    if (angleFromUp >= 80f)
                     {
-                        AddReward(-alaboraPenalty);
-                        counter -=alaboraPenalty ;
-                        LogMessage($"[Reward] Aşırı eğim cezası: {-alaboraPenalty}");
-                    }
 
-                    if (angleFromUp >= 89f)
-                    {
+                        counter -=10f ;
+                        LogMessage($"[Reward] Aşırı eğim cezası: -10");
                         AddReward(-10f);
-                        Debug.Log("Taklaya Geldik");
+                        Debug.Log("Takla");
                         EndEpisode();
                     }
-        
+
+
                     // Sonraki ceza periyodunu ayarla:
                     _nextPenaltyThreshold += penaltyInterval;
                 }
@@ -567,7 +582,7 @@ namespace RLUnity.Cs_Scripts
                 float distance = Vector3.Distance(transform.position, m_LandObject.transform.position);
                 if (distance < 1.0f)
                 {
-                    //Debug.Log("eşşeklik cezası");
+                    //Debug.Log("hareketsizlik cezası");
                     AddReward(-0.05f);
                     counter -= 0.05f;
                     LogMessage("[Reward] Landing alanına yakınlık cezası: -0.05");

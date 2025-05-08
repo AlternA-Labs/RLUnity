@@ -7,6 +7,7 @@ import random
 from collections import deque, namedtuple
 import datetime
 from mlagents_envs.environment import UnityEnvironment
+from mlagents_envs.side_channel.environment_parameters_channel import EnvironmentParametersChannel
 from mlagents_envs.base_env import ActionTuple
 import matplotlib.pyplot as plt
 import pytz
@@ -16,7 +17,7 @@ import pandas as pd
 ##########################################
 # Hiperparametreler
 ##########################################
-MAX_STEPS = 18_000             # Toplam adım sayısı (tüm ajanlar için toplu)
+MAX_STEPS = 999_000             # Toplam adım sayısı (tüm ajanlar için toplu)
 BATCH_SIZE = 256                 # Mini-batch boyutu
 GAMMA = 0.99                    # İndirim faktörü
 LEARNING_RATE = 3e-5            # Öğrenme hızı
@@ -132,7 +133,9 @@ class Critic(nn.Module):
 ##########################################
 print('waiting unity')
 # Editor'de Play mode'da: file_name=None, base_port=5004 (Project Settings/ML-Agents -> Editor Port)
-env = UnityEnvironment(file_name=None, base_port=5004)
+env_params = EnvironmentParametersChannel()
+env = UnityEnvironment(file_name=None, base_port=5004, side_channels=[env_params])
+env_params.set_float_parameter("is_training", 1.0)#Training
 env.reset()
 print('ekin')
 # Mevcut Behavior adlarını al
@@ -361,10 +364,15 @@ while global_step < MAX_STEPS:
 env.close()
 print("Eğitim tamamlandı.")
 
-plot(metrics_log)
-
-print(formatted_datetime)
-
 torch.save(actor.state_dict(), f"models/actor{formatted_datetime}.pth")
 torch.save(critic.state_dict(), f"models/critic{formatted_datetime}.pth")
 print(f"Son adımda Actor ve Critic modeli kaydedildi: actor{formatted_datetime}.pth")
+try:
+    plot(metrics_log)
+except Exception as e:
+    print(f"Grafik çizilirken hata oluştu: {e}")
+    training_error_occurred=True
+
+print(formatted_datetime)
+
+
