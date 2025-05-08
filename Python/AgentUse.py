@@ -10,7 +10,8 @@ from mlagents_envs.base_env import ActionTuple
 ########################################
 # Ayarlar – yalnızca bunları değiştir
 ########################################
-MODEL_PATH ="models/actor2025-05-05_11:24.pth"
+MODEL_PATH ='models/actor2025-05-07_12:46.pth'
+    #"models/actor2025-05-05_11:24.pth"
     #"models/actor2025-04-29_09:56.pth"   # <- bu şimdilik en iyisiydi.
 UNITY_EXEC = None          # Editor’da Play modundaysan None bırak
 BASE_PORT  = 5004          # ProjectSettings/ML-Agents → Editor Port
