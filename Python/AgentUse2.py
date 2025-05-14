@@ -6,10 +6,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # ───────────────────────── User settings ─────────────────────────
-MODEL_PATH ="models/actor_drop_131000_2025-m-d_12-38.pth"
+MODEL_PATH ="final_models/actor_final_2025-m-d_15-00.pth"
+    #"models/actor_drop_131000_2025-m-d_12-38.pth"
 UNITY_EXEC = None
 BASE_PORT  = 5004
-MAX_EPISODES = 20
+MAX_EPISODES = 100
 RENDER_EVERY_STEP = True
 NOISE_STD = 0.0
 SUCCESS_THRESHOLD = 0.0
