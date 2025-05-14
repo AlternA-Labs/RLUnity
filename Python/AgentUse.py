@@ -4,28 +4,29 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+import pandas as pd
+import matplotlib.pyplot as plt
 from mlagents_envs.environment import UnityEnvironment
 from mlagents_envs.base_env import ActionTuple
 from mlagents_envs.side_channel.environment_parameters_channel import EnvironmentParametersChannel
 
-########################################
-# Ayarlar – yalnızca bunları değiştir
-########################################
-MODEL_PATH ='models/actor2025-05-07_12:46.pth'
-    #"models/actor2025-05-05_11:24.pth"
-    #"models/actor2025-04-29_09:56.pth"   # <- bu şimdilik en iyisiydi.
-UNITY_EXEC = None          # Editor’da Play modundaysan None bırak
-BASE_PORT  = 5004          # ProjectSettings/ML-Agents → Editor Port
-MAX_EPISODES = 20          # Kaç tam bölüm koşturalım?
-RENDER_EVERY_STEP = True  # Unity tarafında otomatik render açıksa True’ya gerek yok
-NOISE_STD = 0.0            # İstersen hafif exploration ekle (örn. 0.05)
 
+MODEL_PATH = "models/actor2025-05-05_11:24.pth"
+#'models/actor2025-05-07_12:46.pth'
+
+    #"models/actor2025-04-29_09:56.pth"   # <- bu şimdilik en iyisiydi.
+UNITY_EXEC = None
+BASE_PORT  = 5004
+MAX_EPISODES = 100
+RENDER_EVERY_STEP = True
+NOISE_STD = 0.0
+
+episode_returns = []
+episode_success = []
 
 device = torch.device("mps" if torch.backends.mps.is_available() else
                       "cuda" if torch.cuda.is_available() else "cpu")
-########################################
-# Ağ tanımı (eğitimde kullandığınla birebir)
-########################################
+
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
@@ -132,6 +133,12 @@ while episode < MAX_EPISODES:
     # Episode tamamlandı mı?
     if len(next_terminal_steps) > 0 and all(aid in next_terminal_steps for aid in agent_states):
         mean_return = np.mean(list(agent_returns.values()))
+
+        mean_return = np.mean(list(agent_returns.values()))
+        episode_returns.append(mean_return)
+
+        episode_success.append(int(mean_return > 0))
+
         print(f"===> Episode {episode} bitti | ortalama ödül: {mean_return:.2f} | adım: {global_step}")
         episode += 1
         episode_return = 0.0
@@ -145,5 +152,32 @@ while episode < MAX_EPISODES:
     if RENDER_EVERY_STEP:
         time.sleep(1/30)  # izlemeyi kolaylaştırmak için 30 FPS civarı
 
+
 print("Kontrol döngüsü tamamlandı, Unity ortamı kapatılıyor…")
+# ==== while döngüsünden SONRA, env.close()'tan ÖNCE ====
+df = pd.DataFrame({
+    "episode": range(1, len(episode_returns) + 1),
+    "reward":  episode_returns,
+    "success": np.array(episode_success, dtype=int)
+})
+
+plt.figure(figsize=(10, 4))
+plt.plot(df["episode"], df["reward"], marker="o")
+plt.xlabel("Episode")
+plt.ylabel("Reward")
+plt.grid(True)
+plt.title("Inference rewards (DDPG)")
+plt.tight_layout()
+
+plt.figure(figsize=(10, 4))
+cum_succ = df["success"].cumsum() / df["episode"]
+plt.plot(df["episode"], cum_succ, marker="o")
+plt.xlabel("Episode")
+plt.ylabel("Cumulative success rate")
+plt.ylim(0, 1)
+plt.grid(True)
+plt.title("Success ratio")
+plt.tight_layout()
+plt.show()
+
 env.close()
