@@ -24,15 +24,16 @@ LEARNING_RATE = 3e-5            # Öğrenme hızı
 REPLAY_BUFFER_CAPACITY = 100_000
 TAU = 0.005                     # Soft update katsayısı
 
-# Exploration için Gaussian gürültü
 NOISE_STD = 0.15
 
 device = torch.device("mps" )#if torch.mps.is_available() else "cpu")
 metrics_log = []
-
-best_avg_reward = -float("inf")   # Şu ana kadarki en yüksek ortalama ödül
+episode_lengths   = []
+agent_step_counts = {}
+best_avg_reward = -float("inf")
 DROP_TOLERANCE = 0.8
 os.makedirs("models", exist_ok=True)
+
 ##########################################
 # Replay Buffer
 ##########################################
@@ -62,26 +63,29 @@ formatted_datetime = date.strftime("%Y-%m-%d_%H:%M")
 training_error_occurred=False
 
 def plot(metrics_log1):
-    metrics_df1 = pd.DataFrame(metrics_log1)
-    # grafik
-    plt.figure(figsize=(12, 10))
-    plt.plot(metrics_df1["global_step"], metrics_df1["actor_loss"], color="orange", label="Actor Loss")
-    plt.plot(metrics_df1["global_step"], metrics_df1["critic_loss"], color="blue", label="Critic Loss")
-    plt.xlabel("Global Step")
-    plt.ylabel("Loss")
-    plt.title("Actor ve Critic Loss vs Global Step")
-    plt.figtext(0.95, 0.01, f'{notformatted_datetime}',
-                ha='right', va='bottom', fontsize=10, color='gray')
-    plt.legend()
-    plt.grid(True)
-    plt.figure(figsize=(12, 10))
-    plt.plot(metrics_df1["global_step"], metrics_df1["avg_reward"], color="pink", label="Avearge Reward")
-    plt.xlabel("Global Step")
-    plt.ylabel("Average Reward")
-    plt.title("Average Reward vs Global Step")
-    plt.figtext(0.95, 0.01, f'{notformatted_datetime}',
-                ha='right', va='bottom', fontsize=10, color='gray')
+    df = pd.DataFrame(metrics_log1)
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(df["global_step"], df["avg_reward"],      label="Avg Reward")
+    plt.fill_between(df["global_step"],
+                     df["avg_reward"]-df["reward_std"],
+                     df["avg_reward"]+df["reward_std"],
+                     alpha=0.2, label="±1σ Reward")
+    plt.xlabel("Global Step"); plt.ylabel("Reward"); plt.grid(True); plt.legend()
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(df["global_step"], df["actor_loss"],  label="Actor Loss")
+    plt.plot(df["global_step"], df["critic_loss"], label="Critic Loss")
+    plt.xlabel("Global Step"); plt.ylabel("Loss"); plt.grid(True); plt.legend()
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(df["global_step"], df["avg_ep_len"],  label="Avg Episode Length")
+    plt.plot(df["global_step"], df["noise_std"],   label="Noise σ")
+    plt.xlabel("Global Step"); plt.grid(True); plt.legend()
+
     plt.show()
+
+
 
 # Actor (Policy) Ağı
 ##########################################
@@ -193,6 +197,7 @@ for agent_id in decision_steps:
     agent_states[agent_id] = obs
     agent_rewards[agent_id] = 0.0
     agent_done_flags[agent_id] = False
+    agent_step_counts[agent_id] = 0
 
 while global_step < MAX_STEPS:
     # 1) Karar bekleyen tüm agent'lar için aksiyon oluştur
@@ -231,6 +236,9 @@ while global_step < MAX_STEPS:
         break
     global_step += 1
 
+    for aid in agent_ids:  # tüm aktif ajanlar
+        agent_step_counts[aid] += 1
+
     # 4) Yeni decision_steps ve terminal_steps al
     next_decision_steps, next_terminal_steps = env.get_steps(behavior_name)
 
@@ -245,7 +253,9 @@ while global_step < MAX_STEPS:
         old_state = agent_states[agent_id]
         old_action = actions_dict[agent_id]
         replay_buffer.push(old_state, old_action, reward, next_obs, done)
-
+        
+        episode_lengths.append(agent_step_counts[agent_id])   # bölüm adım sayısı
+        agent_step_counts[agent_id] = 0
         # Log
         agent_rewards[agent_id] += reward
         print(f"[Step {global_step}] Agent {agent_id} done. Episode Reward = {agent_rewards[agent_id]:.2f}")
@@ -334,13 +344,25 @@ while global_step < MAX_STEPS:
         avg_reward = np.mean(episode_rewards[-10:])
         avg_reward2 = np.mean(episode_rewards[-20:])
 
+        reward_std = np.std(episode_rewards[-10:])  # son 10 bölümde değişkenlik
+        avg_ep_len = (np.mean(episode_lengths[-10:])  # güvenli biçimde ortalama
+                      if episode_lengths else 0)
+        q_mean = current_q.mean().item()  # critic’in ortalama Q tahmini
+        buffer_size = len(replay_buffer)  # anlık bellek boyutu
+        noise_now = NOISE_STD
+
 
         print(f"Step: {global_step}, Replay Buffer: {len(replay_buffer)}, Actor Loss: {actor_loss.item():.4f}, Critic Loss: {critic_loss.item():.4f}")
         metrics_log.append({
             "global_step": global_step,
             "avg_reward": avg_reward,
+            "reward_std": reward_std,
+            "avg_ep_len": avg_ep_len,
             "actor_loss": actor_loss.item(),
-            "critic_loss": critic_loss.item()
+            "critic_loss": critic_loss.item(),
+            "q_mean": q_mean,
+            "noise_std": noise_now,
+            "buffer_size": buffer_size
         })
 
         if avg_reward2 > best_avg_reward:

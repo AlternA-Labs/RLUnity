@@ -232,7 +232,7 @@ namespace RLUnity.Cs_Scripts
 
         public override void OnEpisodeBegin()
         {  
-            if (episodeIndex > phase3Steps)
+            if (episodeIndex > phase5Steps)
             {
                 Debug.Log("Eğitim tamamlandı – simülasyon durduruluyor.");
                 //böyle yapmak kırmızı hata veriyor farkındayım ancak kırmızı hata bizi etkilemiyor ve çözümü unity nin
