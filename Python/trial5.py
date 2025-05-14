@@ -1,10 +1,3 @@
-# sac_unity.py ─ Soft Actor-Critic for the same Unity rocket task
-# ───────────────────────────────────────────────────────────────
-#  * Logging, plotting, checkpointing, and Unity interaction are 1-to-1
-#    with your previous script.
-#  * Only the RL core is replaced by SAC (twin Q-nets + stochastic actor).
-#  * Works on macOS with Apple Silicon (“mps”) or switch to "cuda"/"cpu".
-
 import os, datetime, random, pytz, torch, numpy as np, pandas as pd
 from collections import deque, namedtuple
 from typing import Dict, List
@@ -202,7 +195,6 @@ try:
                 for p_t, p in zip(critic_tgt.parameters(), critic.parameters()):
                     p_t.data.mul_(1 - TAU).add_(TAU * p)
 
-        # ── periodic log / ckpt every 1k steps ──
         if global_step % 1_000 == 0:
             avg_r = np.mean(episode_rewards[-10:]) if episode_rewards else 0
             avg20 = np.mean(episode_rewards[-20:]) if episode_rewards else 0
@@ -211,7 +203,6 @@ try:
             metrics_log.append(dict(step=global_step, avg_r=avg_r, r_std=std_r,
                                     avg_len=avg_l, actor_l=act_loss.item(),
                                     critic_l=crit_loss.item(), alpha=α().item()))
-            # replace the whole print block
             alpha_val = α().item()
             print(f"Step {global_step:7} | Buf {len(replay):6} | "
                   f"α {alpha_val:.3f} | Act {act_loss.item():.4f} | Crit {crit_loss.item():.4f}")
@@ -224,13 +215,12 @@ try:
 except Exception as er:
     print(f"Error: {er}")
 finally:
-    #   ↓ yalnızca bir kez çalışır; Unity kapanmış olsa bile güvenlidir
     try:
         env.close()
     except Exception:
         pass
 
-    # metrikler hiç oluşmadıysa korumalı değerler
+
     dummy = lambda: 0.0
     last_act_loss = act_loss.item() if "act_loss" in locals() else dummy()
     last_critic_loss = crit_loss.item() if "crit_loss" in locals() else dummy()
@@ -244,4 +234,4 @@ finally:
     try:
         plot_metrics(metrics_log)
     except Exception as e:
-        print(f"Plot çizilemedi: {e}")
+        print(f"Plot error: {e}")
