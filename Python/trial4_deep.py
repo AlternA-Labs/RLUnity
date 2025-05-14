@@ -1,7 +1,6 @@
 import os
 import copy
 import torch
-import random
 import numpy as np
 import pandas as pd
 import torch.nn as nn
