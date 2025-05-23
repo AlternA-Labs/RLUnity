@@ -337,42 +337,55 @@ namespace RLUnity.Cs_Scripts
         }
 
         public override void CollectObservations(VectorSensor sensor)
-        {
+{
+    // Compute direction vector: towards the asteroid if it exists, otherwise towards the landing site
+    Vector3 dir = (!astroDestroyed ? astro.position : landingSite.position)
+                  - sensorRoot.position;
+    // 1) Normalized direction vector: indicates the direction to the target
+    sensor.AddObservation(dir.normalized);
+    
+    // 2) Distance to target: the magnitude of the direction vector
+    sensor.AddObservation(dir.magnitude);
+    
+    // 3) Forward speed component: projection of the agent’s velocity onto the target direction
+    float fwdSpeed = Vector3.Dot(rb.linearVelocity, dir.normalized);
+    sensor.AddObservation(fwdSpeed);
+    
+    // 4) Agent’s up vector: world-space upward orientation of the sensor root
+    sensor.AddObservation(sensorRoot.up);
+    
+    // 5) Agent’s velocity vector: full 3D linear velocity (x, y, z)
+    sensor.AddObservation(rb.linearVelocity);
+    
+    // Raycast to detect obstacles and measure distances
+    RaycastHit hit;
+    
+    // 6) Distance in front (max 10): distance to obstacle ahead or 10 if none
+    float forwardDist = Physics.Raycast(sensorRoot.position, sensorRoot.forward, out hit, 10f)
+                        ? hit.distance : 10f;
+    sensor.AddObservation(forwardDist);
+    
+    // 7) Distance to the left (max 10): distance to obstacle to the left or 10 if none
+    float leftDist = Physics.Raycast(sensorRoot.position, -transform.right, out hit, 10f)
+                     ? hit.distance : 10f;
+    sensor.AddObservation(leftDist);
 
-            Vector3 dir = (!astroDestroyed ? astro.position : landingSite.position) 
-                          - sensorRoot.position;
-            sensor.AddObservation(dir.normalized);
+    // 8) Distance to the right (max 10): distance to obstacle to the right or 10 if none
+    float rightDist = Physics.Raycast(sensorRoot.position, transform.right, out hit, 10f)
+                      ? hit.distance : 10f;
+    sensor.AddObservation(rightDist);
 
+    // 9) Distance behind (max 10): distance to obstacle behind or 10 if none
+    float backDist = Physics.Raycast(sensorRoot.position, -transform.forward, out hit, 10f)
+                     ? hit.distance : 10f;
+    sensor.AddObservation(backDist);
+    
+    // 10) Distance above (max 15): distance to obstacle above or 15 if none
+    float upDist = Physics.Raycast(sensorRoot.position, transform.up, out hit, 15f)
+                   ? hit.distance : 15f;
+    sensor.AddObservation(upDist);
+}
 
-            sensor.AddObservation(dir.magnitude);
-
-
-            float fwdSpeed = Vector3.Dot(rb.linearVelocity, dir.normalized);
-            sensor.AddObservation(fwdSpeed);
-
-
-            sensor.AddObservation(sensorRoot.up);
-
-
-            sensor.AddObservation(rb.linearVelocity);
-
-
-            RaycastHit hit;
-            float forwardDist = Physics.Raycast(sensorRoot.position, sensorRoot.forward, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(forwardDist);
-            
-            float leftDist = Physics.Raycast(sensorRoot.position, -transform.right, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(leftDist);
-
-            float rightDist = Physics.Raycast(sensorRoot.position, transform.right, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(rightDist);
-
-            float backDist = Physics.Raycast(sensorRoot.position, -transform.forward, out hit, 10f) ? hit.distance : 10f;
-            sensor.AddObservation(backDist);
-            // UP
-            float upDist = Physics.Raycast(sensorRoot.position, transform.up, out hit, 15f) ? hit.distance : 15f;
-            sensor.AddObservation(upDist);
-        }
 
 
 
